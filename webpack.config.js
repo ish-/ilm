@@ -1,5 +1,7 @@
 var path = require('path');
 
+var ExtractTextPlugin = require("extract-text-webpack-plugin");
+
 module.exports = {
   entry: './src/main.js',
   output: {
@@ -11,7 +13,8 @@ module.exports = {
     loaders: [
       { test: /\.vue$/, loader: 'vue'},
       { test: /\.js$/, exclude: /(node_modules|bower_components)/, loader: 'babel-loader' },
-      { test: /\.styl$/, loader: 'style-loader!css-loader!stylus-loader'},
+      // { test: /\.styl$/, loader: 'style-loader!css-loader!stylus-loader'},
+      { test: /\.styl$/, loader: ExtractTextPlugin.extract("css!stylus")},
       { test: /\.jade$/, loader: "jade" },
     ]
   },
@@ -22,9 +25,14 @@ module.exports = {
   // resolve: {
   //     extensions: ['es6']
   // }
+  plugins: [
+    new ExtractTextPlugin("./dist/bundle.css"),
+  ],
   vue: {
     loaders: {
-      css: 'stylus',
+      css: ExtractTextPlugin.extract("css"),
+      stylus: ExtractTextPlugin.extract("css!stylus"),
+      // css: 'stylus',
       html: 'jade',
       js: 'babel',
     },
