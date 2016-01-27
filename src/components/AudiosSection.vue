@@ -2,54 +2,35 @@
 
 import VK from '../vk.service';
 import Vue from 'vue';
-// import Player from '../player.service';
 import AudioList from './AudioList.vue';
-
-var lazyTimeout = null;
 
 export default {
   name: 'AudioSection',
   data () {
     return {
-      audios: [],
-      per: 50
+      items: [],
+      per: 200
     }
-  },
-  methods: {
-    // onScroll (e) {
-    //   console.log('scroll');
-    //   if(lazyTimeout || this.per > this.audios.length)
-    //     return;
-    //   var $el = e.target;
-    //   if(($el.scrollHeight - 400) < ($el.offsetHeight + $el.scrollTop))
-    //     this.per += 50;
-    //     lazyTimeout = setTimeout(()=>{
-    //       lazyTimeout = null;
-    //       this.onScroll(e);
-    //     }, 100)
-    // }
   },
   route: {
     data: () => ({ 
-      audios: VK.getAudios() 
+      items: VK.getAudios() 
     })
   },
   components: {AudioList},
   created () {
-    // this.$watch('slice', (a) => console.log(a))
-    // VK.getAudios().then(({count, items}) => {
-    //   console.log(items);
-    //   this.audios = items;
-    // });
+    this.$on('scroll-end-close', () => {
+      this.per += this.per;
+    });
   },
 }
 
 </script>
 <template lang="jade">
 
-section.audios-section(@scroll="onScroll")
-  header(@click="per += per") Audios
-  audio-list(:audios="audios", :per="per")
+section.audios-section(v-detect-scroll)
+  header.header-search Audios
+  audio-list(:items="items", :per="per")
 
 </template>
 <style lang="stylus">

@@ -10,11 +10,18 @@ export default {
   data: UserSection.data,
   route: UserSection.route,
   methods: {
-    getAudios: (id) => VK.getAudios(-id),
-    getWall: (id) => VK.getWall(-id),
+    getEntityMethod: function () {
+      var req;
+      if(this.entity === 'posts') req = this.getWall();
+      else if (this.entity === 'audios') req = this.getAudios();
+      return req;
+    },
+    getAudios: function () { return VK.getAudios(-this.id, this.items) },
+    getWall: function () { return VK.getWall(-this.id, this.items) },
     getUser: (id) => VK.getGroup(id),
     // getFriends: (id) => VK.getFriends(id)
-  }
+  },
+  created: UserSection.created,
 }
 
 </script>
@@ -22,13 +29,13 @@ export default {
 
 section.user-section.group-section
   header 
-    .user-name {{user.name}} dsf
+    .user-name {{user.name}}
     img.user-avatar(:src="user.photo_100")
-  .user-entity
-    button.user-entity-audios(v-link="{path: '/club/' + id + '/audios'}") Audios
-    button.user-entity-posts(v-link="{path: '/club/' + id + '/posts'}") Posts
-    //- button.user-entity-groups(v-link="{path: '/user/' + userId + '/groups'}") Groups
-    //- button.user-entity-friends(v-link="{path: '/user/' + userId + '/friends'}") Friends
+  .entity
+    button.entity-audios(v-link="{path: '/club/' + id + '/audios'}") Audios
+    button.entity-posts(v-link="{path: '/club/' + id + '/posts'}") Posts
+    //- button.entity-groups(v-link="{path: '/user/' + userId + '/groups'}") Groups
+    //- button.entity-friends(v-link="{path: '/user/' + userId + '/friends'}") Friends
   .loading-beach(v-show="$loadingRouteData", transition="fade") ...loading beach
   div(v-if="items.length", transition="fade")    
     div(:is="entity", :items="items", transition="fade")
@@ -40,7 +47,7 @@ section.user-section.group-section
 <style lang="stylus">
 
 .group-section
-  .user-entity button
+  .entity button
     width: 30%
 
     &.v-link-active

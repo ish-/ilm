@@ -15,7 +15,17 @@ export default {
   },
   methods: {
     goToFriend (friend) {
-      this.$route.router.go({path: '/user/' + friend.id});
+      this.$route.router.go({name: 'user', id: friend.id});
+    }
+  },
+  filters: {
+    filterByName (arr, val) {
+      if (!val || val.length < 3)
+        return arr;
+      val = val.toLowerCase();
+      return arr.filter((i) => {
+        return (i.last_name + ' ' + i.first_name).toLowerCase().indexOf(val) > -1;
+      });
     }
   }
 }
@@ -24,7 +34,8 @@ export default {
 <template lang="jade">
 
 .friend-collection
-  .friend(v-for="friend in items | slice per", track-by="id", @click="goToFriend(friend)")
+  input.search(v-model="filterValue")
+  .friend(v-for="friend in items | filterByName filterValue", track-by="id", @click="goToFriend(friend)")
     .friend-container
       img.friend-avatar(:src="friend.photo_100")
       .friend-lname {{* friend.last_name}}

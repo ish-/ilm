@@ -3,21 +3,47 @@
 import Vue from 'vue';
 
 import AudioList from './AudioList.vue';
+import VK from '../vk.service';
 
 import '../directives/postTextSpoiler';
 
 import '../filters/slice';
 import '../filters/postText';
 
+import RouteDataVkEntityList from './mixins/RouteDataVkEntityList';
+
 export default {
+  mixins: [RouteDataVkEntityList],
+  name: 'PostList',
   props: {
-    items: Array,
-    per: {
-      type: Number,
-      default: 10,
-    }
+    items: {
+      type: Array,
+      default: [],
+    },
+    // per: {
+    //   type: Number,
+    //   default: 10,
+    // }
+  },
+  route: {
+    // data (trns) {
+    //   console.log('PostList route.data()', trns.to.params);
+    //   var userId = trns.to.params.userId;
+    //   if(this.userId === userId)
+    //     return trns.next();
+    //   this.userId = userId;
+    //   this.items.length = 0;
+
+    //   return {items: VK.getWall(this.userId, this.items)};
+    // },
+    // activate () {
+    //   this.$on('scroll-end-close', ::this.getMore);
+    // }
   },
   methods: {
+    getEntity () {
+      return VK.getWall(this.userId, this.items);
+    },
     getName (owner) {
       return owner.name ? owner.name : owner.first_name + ' ' + owner.last_name;
     },
@@ -31,14 +57,14 @@ export default {
 </script>
 <template lang="jade">
 
-.post-collection
-  .post(v-for='post in items', track-by="id")
+ul.post-collection
+  li.post(v-for='post in items', track-by="id")
     div
       .post-info
         a(href="{{* getLink(post.$owner)}}")
           img.post-owner-image(:src='post.$owner.photo_50')
-        .post-owner {{* getName(post.$owner)}}
-        .post-date {{* post.date}}
+          .post-owner {{* getName(post.$owner)}}
+          .post-date {{* post.date}}
     p.post-text(v-post-text-spoiler="post.text | postText")
     .post-image-container
       img.post-image(v-if='post.$photos', :src='post.$photos[0].photo_604')
@@ -48,8 +74,8 @@ export default {
       .post-info
         a(href="{{* getLink(post.copy_history[0].$owner)}}")
           img.post-owner-image(:src='post.copy_history[0].$owner.photo_50')
-        .post-owner {{getName(post.copy_history[0].$owner)}}
-        .post-date {{post.copy_history[0].date}}
+          .post-owner {{getName(post.copy_history[0].$owner)}}
+          .post-date {{post.copy_history[0].date}}
       p.post-text(v-post-text-spoiler="post.copy_history[0].text | postText")
       .post-image-container
         img.post-image(v-if='post.copy_history[0].$photos', :src='post.copy_history[0].$photos[0].photo_604')
@@ -76,21 +102,25 @@ export default {
   max-width: 600px;
   margin: 0 auto 11px;
   font-family: Tahoma;
+
+  a > * {
+    pointer-events: none
+  }
 }
 
 .post .post-owner-image {
   width: 30px;
   height: 30px;
-  position: absolute;
-  left: 0;
+  float: left
+  margin-right: 20px
 }
 
 .post .post-info {
   vertical-align: top;
   position: relative;
-  display: inline-block;
+  display: block;
   max-width: 60%;
-  padding-left: 65px;
+  // padding-left: 65px;
   margin-bottom: 15px;
 }
 
@@ -117,6 +147,7 @@ export default {
   font-size: 12px
   overflow: hidden
   position: relative
+  line-height: 16px
 
   &.post-text-spoiler-hide 
     max-height: 200px
@@ -124,13 +155,22 @@ export default {
     &:after
       absolute: bottom left right
       content: ''
-      box-shadow: 0 0 10px 10px white
+      box-shadow: 0 0 26px 18px #fff
     // &:before
     //  absolute: bottom left right
     //  content: 'show'
 
+.post-text a
+  background: #C3EBFD
+  padding: 2px 5px
+  /* line-height: 20px */
+  display: inline-block
+  border-radius: 5px
+  box-shadow: 0 0 0px 0 grey inset
+  color: black
+
 .post-text h3 {
-  margin: 0;
+  margin-rightgin: 0;
 }
 
 .post .post-image-container img {
@@ -146,8 +186,13 @@ export default {
   /*position: absolute;*/
   margin-left: -30px;
   margin-right: -30px;
-  padding-left: 33px;
+  padding: 12px 33px;
   // white-space: nowrap;
+
+  &:after {
+    left: 30px
+    right: 30px
+  }
 }
 
 </style>

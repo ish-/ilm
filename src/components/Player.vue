@@ -19,9 +19,28 @@ var seekMouseDown = false;
 export default {
   name: 'PlayerView',
   data () {
-    return {player}
+    return {player, showSuggested: false}
   },
   methods: {
+    playSuggested (audio) {
+      player.audioInfo.setPlayable(audio);
+      player.play(player.audioInfo);
+    },
+    // suggestedSearch (v) {
+    //   player.audioInfo.search(this.suggestedSearchValue);
+    // },
+    toggleSuggested (bool) {
+      // var _watcher;
+      if(this.showSuggested || bool === false) {
+        return this.showSuggested = false;
+      }
+      var a = player.audioInfo
+      // this.suggestedSearchValue = a.artist + ' ' + a.title;
+      if(!a.$suggested) {
+        a.search();
+      }
+      this.showSuggested = true;
+    },
     seekOnMouseDown (e) {
       seekMouseDown = true;
       this.seekOnMouseMove(e);
@@ -36,10 +55,18 @@ export default {
     seekOnMouseMove (e) {
       if (!seekMouseDown)
         return;
-      var seek = e.offsetX/this.$el.offsetWidth;
+      var w = this.$els.seek.offsetWidth;
+      var seek = (e.offsetX)/w;
       this.player.setCurrentTime(seek);
     },
+    logAudioInfo () {
+      console.log(player.audioInfo);
+      this.$log(player.audioInfo);
+    }
   },
+  created () {
+    this.$watch('player.audioInfo', this.toggleSuggested.bind(this, false));
+  }
   // components: {
   //   'player-seek': PlayerSeek,
   // }
@@ -48,15 +75,44 @@ export default {
 
 </script>
 <template lang="jade">
-.player(:class="{'no-audio': !player.audioInfo.id}")
-  .audio-seek(@mouseup="seekOnClick", @mouseout="seekOnMouseOut", @mousedown="seekOnMouseDown", @mousemove="seekOnMouseMove")
-    .audio-progress(v-bind:style="{width: player.seek*100 + '%'}")
-    .audio-loaded(v-bind:style="{width: (player.buffered*100 + '%')}")
+.audio-suggested(v-if="showSuggested")
+  //- input.search(v-model="suggestedSearchValue", @keydown.enter="suggestedSearch")
+  .audio-suggested-none(v-show="!player.audioInfo.$suggested.length") No items
+  .audio(v-for="audio in player.audioInfo.$suggested", @click="playSuggested(audio)")
+    .audio-container(class="aid-{{* audio.id}}")
+      .audio-bitrate(v-if="audio.$bitrate") ({{ audio.$bitrate }}kbps)
+      .audio-artist {{* audio.artist}}
+      .audio-title {{* audio.title}} ({{* audio.duration | audioDuration}})
+.player(:class="{'no-audio': !player.audioInfo.artist}")
+  .audio-seek(v-el:seek, @mouseup="seekOnClick", @mouseout="seekOnMouseOut", @mousedown="seekOnMouseDown", @mousemove="seekOnMouseMove")
+    .audio-progress(v-bind:style="{transform: 'translateX(-'+(100 - player.seek*100) + '%)'}")
+    .audio-loaded(v-bind:style="{transform: 'translateX(-'+(100 - (player.buffered*100) + '%)')}")
   .audio-info
-    .audio-artist {{player.audioInfo.artist}}
-    .audio-title {{player.audioInfo.title}} {{player.audioInfo.$bitrate}}kbps
+    .audio-paused(style="position: absolute; bottom: 0; left: 0;", @click="player.togglePause()") {{player.paused}}
+    .audio-artist(@click="logAudioInfo") {{player.audioInfo.artist}}
+    .audio-title 
+      span(@click="player.audioInfo.scrobble()") {{player.audioInfo.title || player.audioInfo.name}} 
+      button(@click="toggleSuggested") {{player.audioInfo.$playable.$bitrate}}kbps
 </template>
 <style lang="stylus">
+.audio-suggested
+  overflow-y: auto
+  max-height: 50%
+  // min-height: 50px
+  padding-bottom: 44px
+  fixed: bottom 57px left right
+  background: rgba(255,255,255,.9)
+  border-top: 3px solid #333
+
+  &-none
+    color: #aaa
+    text-align: center
+
+  .audio-bitrate
+    display: inline-block
+    color: #aaa
+    vertical-align: top
+    font-size: 13px
 
 .player {
   position: fixed;
@@ -64,6 +120,7 @@ export default {
   background: #4c4c4c;
   opacity: .92;
   z-index: 20;
+  overflow: hidden
 
   transition: .2s transform;
   transform: translateY(0px);
@@ -99,7 +156,9 @@ export default {
   height: 100%;
   background: #00A2EA;
   position: absolute;
-  width: 0;
+  width: 100%;
+  transform: translateX(-100%)
+  pointer-events: none
 }
 
 .player .audio-loaded {
@@ -109,7 +168,7 @@ export default {
 
 .player .audio-info {
   background: #4c4c4c;
-  height: 62px;
+  height: 56px;
   padding: 8px 72px;
   opacity: 1;
   font-weight: 300;
@@ -117,19 +176,19 @@ export default {
 }
 
 .player .audio-info .audio-artist {
-  font-size: 24px;
+  font-size: 20px;
   color: #fff;
   /*display: inline-block;*/
 }
 
 .player .audio-info .audio-title {
-  font-size: 21px;
+  font-size: 16px;
   /*display: inline-block;*/
   color: #CBCBCB;
 }
 
-@media screen and (min-width: 900px)
-  .player
-    left: 320px
+// @media screen and (min-width: 900px)
+//  .player
+//    left: 320px
 
 </style>

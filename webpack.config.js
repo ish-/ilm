@@ -3,12 +3,13 @@ var path = require('path');
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
 
 module.exports = {
-  entry: './src/main.js',
+  entry: ['./src/main.js'],
   output: {
     path: __dirname,
     filename: './dist/bundle.js'
   },
-  devtool: 'cheap-module-source-map',
+  // devtool: 'cheap-module-source-map',
+  devtool: 'source-map',
   module: {
     loaders: [
       { test: /\.vue$/, loader: 'vue'},

@@ -1,92 +1,133 @@
 <script lang="babel">
 import Vue from 'vue';
-import {throttle} from '../utils';
 import VK from '../vk.service';
-import Audios from './AudioList.vue';
-import Posts from './PostList.vue';
-import Friends from './FriendList.vue';
+// import Audios from './AudioList.vue';
+// import Posts from './PostList.vue';
+// import Friends from './FriendList.vue';
+
+import '../directives/detectScroll';
 
 // const DEFAULT_ENTITY = 'posts';
 
 export default {
-  components: { Audios, Posts, Friends },
+  // components: { Audios, Posts, Friends },
+  name: 'UserSection',
   data () {
-    return {items: [], id: 0, entity: '', user: {},}
+    return {userId: false, entity: '', user: {}}
   },
+  // route: {
+  //   data (transition) { 
+  //     this.id = transition.to.params.id;
+
+  //     this.saveScroll();
+
+  //     var entity = transition.to.params.entity || 'posts';
+  //     if(entity === this.entity && this.items.length)
+  //       return transition.next();
+  //     this.entity = entity;
+  //     this.loadScroll();
+  //     this.items.length = 0;
+  //     // return {items: this.getEntityMethod()};
+  //     return {items: this.getEntityMethod()};
+  //   },
+  //   activate () { this.loadScroll() },
+  //   deactivate () { this.saveScroll() },
+  // },
   route: {
-    data (route) { 
-      var req;
-      var id = this.id = route.to.params.id;
-      var entity = route.to.params.entity || 'posts';
+    data (trns) {
+      // console.log('UserSection route.data()', trns.to);
+      var userId = trns.to.params.userId;
+      var routeName = trns.to.name;
+      if(this.userId === userId) {
+        this.loadScroll(routeName);
+        return trns.next();
+      }
+      this.routeName = routeName;
+      this.userId = userId;
+      this.scrollTop = {};
+      this.user = {};
 
-      this.items = [];
-
-      console.log(this);
-      // this.getAudios()
-
-      if(entity === 'posts') req = this.getWall(id);
-      else if (entity === 'audios') req = this.getAudios(id);
-      else if (entity === 'friends') req = this.getFriends(id);
-
-      if(!req)
-        return;
-      this.entity = entity;
-
-      return {items: req}
+      return {user: VK.getUsers(this.userId)};
     },
+    deactivate () {
+      this.scrollTop[this.routeName] = this.$el.scrollTop;
+    }
   },
   methods: {
-    getAudios: (id) => VK.getAudios(id),
-    getWall: (id) => VK.getWall(id),
-    getFriends: (id) => VK.getFriends(id),
-    getUser: (id) => VK.getUsers(id),
-    onEndClose: () => console.log('closeeee!'),
+    loadScroll (routeName) {
+      this.scrollTop[this.routeName] = this.$el.scrollTop;
+      this.routeName = routeName;
+      this.$nextTick(() => {
+        console.log(this.$el.scrollHeight, routeName, this.scrollTop[routeName]);
+        this.$log();
+        this.$el.scrollTop = this.scrollTop[routeName] || 0;
+      });
+    },
+    alert () {
+      this.$dispatch('alert', (Math.random() * 500)|0)
+    }
+    // saveScroll () {
+    //   if(this.entity)
+    //     this.scrollTop[this.entity] = this.$el.scrollTop;
+    // },
+    // getMore () {
+    //   console.dir(this, this.$refs.entity);
+    //   this.$nextTick(() => {
+    //     this.$refs.entity.getMore();
+    //   });
+    //   // this.$refs.entity.getMore();
+    // }
   },
   created () {
-    this.getUser(this.$route.params.id).then(user => this.user = user)
-  }
+    this.scrollTop = {};
+    // this.$on('scroll-end-close', ::this.getMore);
+    // this.$watch('$loadingRouteData', (v) => {
+    //   if(!v)
+    //     return
+    //   console.log('watch', this.$el.scrollHeight);
+    //   this.$nextTick(() => {
+    //     console.log('watch nexttick', this.$el.scrollHeight);
+    //   });
+    // })
+    // this.getUser(this.$route.params.id).then(user => this.user = user)
+  },
 }
-
-Vue.directive('detect-scroll', {
-    params: ['onEndClose'],
-    bind () {
-      this.throttledOnScroll = throttle(this.onScroll, 500, this);
-      this.el.addEventListener('scroll', this.throttledOnScroll);
-    },
-    onScroll (e) {
-      var $el = this.el;
-      if($el.scrollHeight - $el.offsetHeight - 500 < $el.scrollTop)
-        this.params.onEndClose();
-    },
-    // update () {
-    //   console.log(this.params);
-    // },
-    unbind () {
-
-    }
-});
 
 </script>
 <template lang="jade">
 
-section.user-section(v-detect-scroll, :onEndClose="onEndClose")
-  header 
+section.user-section(v-detect-scroll)
+  header.header-profile(@click="alert")
     .user-name {{user.first_name}} {{user.last_name}}
     img.user-avatar(:src="user.photo_100")
-  .user-entity
-    button.user-entity-audios(v-link="{path: '/user/' + id + '/audios'}") Audios
-    button.user-entity-posts(v-link="{path: '/user/' + id + '/posts'}") Posts
-    button.user-entity-groups(v-link="{path: '/user/' + id + '/groups'}") Groups
-    button.user-entity-friends(v-link="{path: '/user/' + id + '/friends'}") Friends
+  .entity
+    button.entity-audios(v-link="{name: 'user-audios', params: {userId: userId}}") Audios
+    button.entity-posts(v-link="{name: 'user-posts', params: {userId: userId}}") Posts
+    //- button.entity-groups(v-link="{name: 'user', params: {id: id, entity: 'groups'}}") Groups
+    //- button.entity-friends(v-link="{name: 'user', params: {id: id, entity: 'friends'}}") Friends
   .loading-beach(v-show="$loadingRouteData") ...loading beach
-  div(v-if="items.length", transition="fade")    
-    div(:is="entity", :items="items", transition="fade")
+  router-view(v-ref:entity, keep-alive)
+  //- div(v-if="items.length", transition="fade")    
+  //-   div(:is="entity", :items="items", transition="fade")
   //- post-list(:posts="items", v-if="entity === 'posts' && items.length", transition="fade")
   //- audio-list(:audios="items", v-if="entity === 'audios' && items.length", transition="fade")
   //- friend-list(:friends="items", v-if="entity === 'friends' && items.length", transition="fade")
 
 </template>
 <style lang="stylus">
+
+.translateX
+  &-transition
+    transition: all .5s;
+    opacity: 1
+    transform: translateX(0px)
+  &-enter
+    transform: translateX(100px)
+    opacity: 0
+  &-leave
+    opacity: 0;
+    transform: translateX(-100px)
+
 
 .fade-transition
   transition: all .5s;
@@ -98,38 +139,42 @@ section.user-section(v-detect-scroll, :onEndClose="onEndClose")
     opacity: 0
 
 .user-section
-  background: black
+  // background: black
   // min-height: 100%
 
   .user-name
     display: inline-block
+    font-size: 21px
+    font-family: Tahoma
+    padding-right: 70px
+    float: right
 
   .user-avatar
     absolute: right
     height: 100%
 
-.user-entity 
+.entity 
   text-align: center
   button
     // border-radius: 2px
-    opacity: .9
+    opacity: .92
     transition: .2s width
-    line-height: 108px
-    color: white
-    size: 20% 73px
-    background: #4C4C4C
-    font-size: 20px
+    line-height: 56px
+    color: #333
+    size: 20% 56px
+    background: white
+    font-size: 18px
     text-align: center
-    border-right: 1px solid #616161
 
     &:hover, &:active
       opacity: 1
     // margin: 20px 10px 0
 
     &.v-link-active
+      opacity: 1
       width: 40%
       text-align: right
       padding-right: 10px
-      background: #616161
+      border-bottom: 5px solid #15EAA2;
       // display: none
 </style>
