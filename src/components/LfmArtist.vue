@@ -1,5 +1,6 @@
 <script lang="babel">
 import LastFM from '../lastfm.service';
+import VK from '../vk.service';
 // import LfmTrackList from './LfmTrackList.vue';
 // import LfmAlbumList from './LfmAlbumList.vue';
 import {compareInLower} from '../utils';
@@ -8,8 +9,8 @@ export default {
   // components: {LfmTrackList, LfmAlbumList},
   data () {
     return {
+      vk: VK,
       artist: {}, 
-      albums: [], 
       name: '', 
       // tabName: 'tracks', 
       // hideTByMbid: true, 
@@ -32,10 +33,14 @@ export default {
       // }
 
       // return request || this.artistPromise;
-      this.name = transition.to.params.artistName.trim();
+      console.log('asd', transition.to);
+      var artistName = transition.to.params.artistName.trim();
 
-      if(compareInLower(this.name, this.artist.name))
+      if(compareInLower(this.name, artistName))
         return transition.next();
+
+      this.name = artistName;
+      this.artist = {};
 
       return {artist: LastFM.getArtist(this.name)
         .catch(() => {
@@ -48,6 +53,12 @@ export default {
   methods: {
     alert () {
       this.$dispatch('alert', Math.random()*1000);
+    },
+    getArtistImage () {
+      console.log('getArtistImage call;')
+      if(!this.artist.image)
+        return;
+      return this.artist.image.extralarge || this.artist.image.large || this.artist.image.medium || '';
     }
   },
   created () {
@@ -62,8 +73,8 @@ export default {
 
 </script>
 <template lang="jade">
-section.lfm-artist
-  header(style="background-image: url('{{{artist.image}}}')", @click="alert")
+section.lfm-artist-section()
+  header(style="background-image: url('{{{getArtistImage()}}}')")
     h1 {{ artist.name || name}}
     template(v-if="artist.name && !error")
       .artist-tags
@@ -73,11 +84,12 @@ section.lfm-artist
       .artist-entities
         .entity(v-link="{name: 'lfm-artist-tracks', params: {artistName: name}}") tracks
         .entity(v-link="{name: 'lfm-artist-albums', params: {artistName: name}}") albums
+        .entity(v-link="{name: 'lfm-artist-similars', params: {artistName: name}}") similars
         //- .entity(v-link="{name: 'lfm-artist', params: {entity: 'bio', artist: name}}") bio
   .loading-beach(v-show="$loadingRouteData") ...loading beach
   div(v-if="error") Artist not found
   div(v-if="artist.name && !error && !$loadingRouteData")
-    router-view(:artist="artist", :items="artist.tracks")
+    router-view(:tracks="artist.tracks")
     //- ul.artist-albums(v-if="entity === 'albums'")
     //-   li.artist-album(href="{{album.name}}", v-for="album in albums | hideAByMbid hideAByMbid") {{album.name}}
     //- lfm-track-list(v-if="checkEntity('tracks')", :items.once="artist.tracks")
@@ -89,8 +101,9 @@ section.lfm-artist
 </template>
 <style lang="stylus">
 
-.lfm-artist
+.lfm-artist-section
   padding-top: 0
+
   header
     height: auto
     color: white
@@ -157,6 +170,7 @@ section.lfm-artist
       color: #D8D8D8
 
       .entity
+        cursor: pointer
         font-size: 18px
         padding: 6px
         margin-right: 10px
@@ -169,4 +183,7 @@ section.lfm-artist
     color: black
     list-style: none
 
+  .lfm-artist-collection
+    white-space: initial;
+    height: initial;
 </style>

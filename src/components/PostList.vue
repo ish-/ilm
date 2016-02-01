@@ -20,6 +20,7 @@ export default {
       type: Array,
       default: [],
     },
+    group: false,
     // per: {
     //   type: Number,
     //   default: 10,
@@ -40,9 +41,12 @@ export default {
     //   this.$on('scroll-end-close', ::this.getMore);
     // }
   },
+  created () {
+    this.$on('scroll-end-close', this.getEntity);
+  },
   methods: {
     getEntity () {
-      return VK.getWall(this.userId, this.items);
+      return VK.getWall((this.group ? '-' : '') + this.userId, this.items);
     },
     getName (owner) {
       return owner.name ? owner.name : owner.first_name + ' ' + owner.last_name;

@@ -3,6 +3,7 @@ import {storage} from './utils';
 // import LastFMCache from '../lib/lastfm.api.cache';
 import MB from './musicbrainz.service';
 import {arrFind} from './utils';
+import alerts from './alerts.service';
 
 // var cache = new LastFMCache();
 
@@ -36,6 +37,18 @@ function clearLfmTrack (track) {
   delete track.url;
   delete track['@attr'];
   return track;
+}
+
+function setLfmImage (artist) {
+  var images = {};
+  for(var i = 0, l = artist.image.length; i < l; i++) {
+    var image = artist.image[i];
+    if(!image.size || !image['#text'])
+      continue;
+    images[image.size] = image['#text'];
+  }
+  artist.image = images;
+  return artist;
 }
 
 class _LastFM {
@@ -86,21 +99,26 @@ class _LastFM {
       ]) => { 
       // console.log(artist);
       artist.bio = artist.bio.content;
-      artist.image = artist.image[3]['#text'];
-      artist.similars = artist.similar.artist;
+      setLfmImage(artist);
+      // artist.similars = artist.similar.artist;
+      delete artist.similar;
       artist.tags = artist.tags.tag;
+      tracks.forEach(clearLfmTrack);
       artist.tracks = tracks;
       artist.tracks.$maxListeners = +tracks[0].listeners
-      setTimeout(()=>{
-        artist.tracks.map(clearLfmTrack);
-      })
       cachedArtist = artist;
       return artist;
     });
   }
 
+  getArtistSimilars (artist) {
+    return this.request('artist', 'getSimilar', {artist, limit: 30})
+      .then(d => d.similarartists.artist.map(setLfmImage));
+  }
+
   searchArtist (artist) {
-    return this.request('artist', 'search', {artist});
+    return this.request('artist', 'search', {artist})
+      .then(d => d.results.artistmatches.artist.map(setLfmImage));
   }
 
   scrobble (opts) {
@@ -120,6 +138,7 @@ class _LastFM {
           albums.$maxPlaycount = albums[0].playcount;
           albums.forEach((album) => {
             album.tracks = null;
+            setLfmImage(album);
             if(album.mbid) {
               album.date = '..loading';
               MB.getAlbum(album.mbid).then((d)=>{
@@ -162,8 +181,10 @@ class _LastFM {
         reject('LastFM: bad entity/method');
       }
       lastfm[entity][method](query, {success: resolve, error: (d) => {
-        if(!d || isFinite(d))
+        if(!d || isFinite(d)) {
+          alerts.add({type: 'LastFM Service', text: 'Unexpected problems.'})
           return reject(null);
+        }
       }});
     });
   }

@@ -1,6 +1,7 @@
 <script lang="babel">
 import Vue from 'vue';
 import Player from '../player.service';
+import PlayerAudio from '../PlayerAudio';
 import VK from '../vk.service';
 // import LastFM from '../lastfm.service';
 import '../filters/slice';
@@ -12,13 +13,14 @@ export default Vue.extend({
       type: Array,
       default: [],
     },
+    group: false,
     per: {
       type: Number,
       default: 1000,
     },
   },
   data (trns) {
-    return {showBitrates: false}
+    return {showBitrates: false, bitRateShowenFor: 0, showDownload: false};
   },
   // route: {
   //   data (trns) {
@@ -37,14 +39,32 @@ export default Vue.extend({
   // },
   methods: {
     getEntity () {
-      return VK.getAudios(this.userId, this.items);
+      return VK.getAudios((this.group ? '-' : '') + this.userId, this.items);
     },
     play (audio) {
       Player.play(audio, this.items);
     },
+    addToPlaylist (items, next) {
+      Player.addToPlaylist(items, next);
+    },
     getBitrates () {
       this.showBitrates = true;
-      this.items.forEach(Player.setBitrate);
+      Player.setBitrate(this.items.slice(this.bitRateShowenFor, 10));
+      this.bitRateShowenFor += 10;
+    },
+    getDownloadName (audio) {
+      return audio.artist + ' - ' + audio.title + '.mp3';
+    },
+    download (_audio, i) {
+      var audio;
+      if(!(_audio instanceof PlayerAudio))
+        audio = new PlayerAudio(_audio);
+      else
+        audio = _audio;
+      this.$set(`items[${i}].$downloading`, true);
+      audio.download()
+        .then(() => _audio.$downloading = false)
+        .catch(() => _audio.$downloadError = !(_audio.$downloading = false));
     },
     goToArtist (artist) {
       this.$route.router.go({name: 'lfm-artist-tracks', params: {artistName: artist}});
@@ -61,15 +81,35 @@ export default Vue.extend({
 <template lang="jade">
 
 ul.audio-collection(:class="{'bitrates-show': showBitrates}")
-  button(@click="getBitrates") get bitrates
-  li.audio(v-for="audio in items | slice per", track-by="id", @click="play(audio)", @contextmenu.prevent="goToArtist(audio.artist)")
+  .ctrls
+    button(@click="getBitrates") get bitrates
+    button(@click="addToPlaylist(items, true)") add next
+    button(@click="addToPlaylist(items)") add to the end
+    button(@click="showDownload = !showDownload") download
+  li.audio(v-for="audio in items | slice per", @click="play(audio)")
     .audio-container(class="aid-{{* audio.id}}")
       .audio-bitrate {{ audio.$bitrate }}
-      .audio-artist {{* audio.artist}}
+      .audio-artist(@contextmenu.prevent="goToArtist(audio.artist)") {{* audio.artist}}
       .audio-title {{* audio.title}}
+      .audio-download(v-if="showDownload", @click.stop="download(audio, $index)") d^
+        span(v-show="audio.$downloading") ...^
+        span(v-show="audio.$downloadError")  error
 
 </template>
 <style lang="stylus">
+
+.audio-collection
+  .ctrls
+    padding: 22px 22px 0
+  button
+    margin-right: 8px
+    padding: 8px 10px
+    border-radius: 3px
+    background: #44C0F6
+    text-shadow: 0 0 3px white
+    color: #2B2B2B
+    margin-bottom: 5px
+
 
 .audio 
   .audio-container

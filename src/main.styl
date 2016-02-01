@@ -10,6 +10,7 @@ body
   color: white
   absolute: left right bottom top
   overflow: hidden
+  user-select: none
   
 a
   text-decoration: none
@@ -38,3 +39,26 @@ button
   
 ul li 
   list-style: none
+  
+.translateX
+  &-transition
+    transition: all .5s;
+    opacity: 1
+    transform: translateX(0px);
+  &-enter
+    transition-delay: .5s
+    transform: translateX(100%);
+    opacity: 0
+  &-leave
+    opacity: 0;
+    transform: translateX(0) scale(.7);
+
+
+.fade-transition
+  transition: all .5s;
+  opacity: 1
+  transform: translateY(0px)
+.fade
+  &-enter, &-leave
+    transform: translateY(-100px)
+    opacity: 0

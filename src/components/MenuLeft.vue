@@ -1,7 +1,21 @@
 <script lang="babel">
+import VK from '../vk.service';
+import LastFM from '../lastfm.service';
 
 export default {
-
+  data () {
+    return {vk: VK, lfm: LastFM};
+  },
+  // methods: {
+  //   vkAuth: VK.auth,
+  //   vkServerAuth: ::VK.serverAuth,
+  //   lfmAuth: LastFM.auth,
+  //   vkServerAuthed: VK.serverAuthed,
+  // },
+  // computed: {
+  //   lfmAuthed () { return LastFM.authed },
+  //   vkAuthed () { return VK.authed },
+  // }
 }
 
 </script>
@@ -9,7 +23,11 @@ export default {
 
 .menu-left
   a(v-link="'/user'") My Account
-  a(v-link="{name: 'audios'}") Audios
+  a(v-link="{name: 'search'}") Search
+  .auth
+    button(@click="vk.auth", v-show="!vk.authed") vk auth
+    button(@click="vk.serverAuth", v-show="!vk.serverAuthed") vk server auth
+    button(@click="lfm.auth", v-show="!lfm.authed") lastfm auth
   //- a(v-link="{name: 'groups'}") Groups
   //- a(v-link="{name: 'friends'}") Friends
   //- a(v-link="{name: 'bookmarks'}") Bookmarks
@@ -28,6 +46,21 @@ export default {
   //max-width: 320px;
   left: 0;
   height: 100%;
+
+  .auth {
+    margin: 20px
+
+    button {
+      margin: 5px
+      height: 46px
+      font-size: 19px
+      color: #DCDCDC
+      padding: 0 24px
+      line-height: 46px
+      border-radius: 3px
+      background: #00A2EA
+    }
+  }
 }
 
 .menu-left .toggle {

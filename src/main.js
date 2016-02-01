@@ -3,13 +3,14 @@
 import Vue from 'vue'
 Vue.config.debug = true;
 
-
 ////// SERVICES
 import Router from 'vue-router'
 import './main.styl'
 import VK from './vk.service'
 import LastFM from './lastfm.service'
 // import { domain, fromNow } from './filters'
+
+// import html2canvas from '../lib/html2canvas'
 
 ////// COMPONENTS
 import App from './components/App.vue';
@@ -18,8 +19,9 @@ import UserSection from './components/UserSection.vue';
 import LfmArtist from './components/LfmArtist.vue';
 import LfmTrackList from './components/LfmTrackList.vue';
 import LfmAlbumList from './components/LfmAlbumList.vue';
+import LfmArtistList from './components/LfmArtistList.vue';
 import LfmAlbum from './components/LfmAlbum.vue';
-import Search from './components/Search.vue';
+import SearchSection from './components/Search.vue';
 import VkAudioList from './components/AudioList.vue';
 import VkPostList from './components/PostList.vue';
 import GroupSection from './components/GroupSection.vue';
@@ -54,21 +56,29 @@ router.map({
       // '/audios': { component: Audios, name: 'audios' },
     }
   },
-  // '/user/:id/:entity': { component: UserSection, name: 'user'},
-  '/club/:id/:entity': { component: GroupSection, name: 'group'},
-  // '/artist/:artist/:album': { component: LfmArtist, name: 'lfm-artist-album'},
+  '/club/:userId': {
+    component: GroupSection, name: 'club',
+    subRoutes: {
+      '/posts': { component: VkPostList, name: 'club-posts' },
+      '/audios': { name: 'club-audios',
+        component: VkAudioList.extend({mixins: [RouteDataVkEntityList]}) },
+      // '/audios': { component: Audios, name: 'audios' },
+    }
+  },
   '/artist/:artistName': {
     name: 'lfm-artist',
     component: LfmArtist,
     subRoutes: {
       '/tracks': { component: LfmTrackList, name: 'lfm-artist-tracks' },
       '/albums': { component: LfmAlbumList, name: 'lfm-artist-albums' },
+      '/similars': { component: LfmArtistList, name: 'lfm-artist-similars' },
       '/album/:albumName': { component: LfmAlbum, name: 'lfm-artist-album' },
     }
   },
   // '/artist/:artist/album/:album': { component: LfmArtist, name: 'lfm-artist-album'},
   // '/artist/:artist/:entity': { component: LfmArtist, name: 'lfm-artist'},
   // '/audios/': { component: AudiosSection, name: 'audios'}
+  // '/search': { component: SearchSection, name: 'search-query'},
   '/search': { component: SearchSection, name: 'search'}
 })
 
@@ -98,4 +108,4 @@ router.redirect({
   '*': '/search/'
 })
 
-router.start(App, '#app')
+router.start(App, '#app');

@@ -1,3 +1,5 @@
+import {saveAs} from 'FileSaver.js';
+
 export var storage = {
   get: (k) => { 
     var v = localStorage.getItem(k);
@@ -18,12 +20,43 @@ export var storage = {
       localStorage.setItem(k, JSON.stringify(v)); });
   },
   remove: (k) => { return localStorage.removeItem(k); },
+  _callbacks: [],
+  addEventListener (type, cb) {
+    cb.type = type;
+    this._callbacks.push(cb);
+    return () => {
+      this._callbacks.splice(this._callbacks.indexOf(cb), 1);
+    }
+  },
+  emit (type, msg = {}) {
+    msg.type = type;
+    msg.timeStamp = Date.now();
+    this.set('msg', msg);
+  }
+}
+
+storage.set('msg', '');
+
+window.onstorage = function (e) {
+  var msg;
+  if(e.key !== 'msg' || !e.newValue)
+    return;
+  storage.set('msg', '');
+  msg = JSON.parse(e.newValue);
+  var i = -1; while (i++ < storage._callbacks.length)
+  // for(var i = 0; i < storage._callbacks.length; i++)
+    if(storage._callbacks[i].type === msg.type)
+      storage._callbacks[i](msg);
 }
 
 export function $http (opts) {
   return new Promise (function(resolve, reject){
     var xhr = new XMLHttpRequest();
-    xhr.open(opts.method || 'GET', opts.url + '?' + opts.search.join('&'), true);
+    xhr.open(opts.method || 'GET', opts.url + '?' + (opts.search ? opts.search.join('&') : ''), true);
+    if(opts.data) {
+      xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+      opts.data = JSON.stringify(opts.data);
+    }
     xhr.addEventListener('readystatechange', function() {
       if(xhr.readyState === 4) {
         var d = JSON.parse(xhr.response);
@@ -37,6 +70,24 @@ export function $http (opts) {
       }
     });
     xhr.send(opts.data);
+  });
+}
+
+export function $download (url, fileName) {
+  return new Promise ((resolve, reject) => {
+    var URL = window.URL || window.webkitURL; // ?
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url);
+    xhr.responseType = 'blob';
+    // xhr.onprogress = ::console.log;
+    xhr.onload = function(e) {
+      var saved = saveAs(xhr.response, fileName);
+      resolve();
+    };
+    xhr.onerror = function(e) {
+      reject(xhr);
+    }
+    xhr.send();
   });
 }
 
@@ -90,18 +141,22 @@ export function throttle (fn, timeout, ctx) {
   };
 }
 
-export function $httpContentLength (url) {
-  return new Promise(function(resolve, reject){
-    var xhr = new XMLHttpRequest();
-    xhr.open('HEAD', '/head/'+url);
-    xhr.addEventListener('readystatechange', () => {
-      if(xhr.readyState === 4) {
-        resolve(xhr.getResponseHeader('Content-length'));
-      }
-    });
-    xhr.send();
-  });
-}
+// export function $httpContentLength (url) {
+//   return new Promise(function(resolve, reject){
+//     var xhr = new XMLHttpRequest();
+//     xhr.open('HEAD', '/head/'+url);
+//     xhr.onreadystatechange = () => {
+//       if(xhr.readyState === 4) {
+//         resolve(xhr.getResponseHeader('Content-length'));
+//       }
+//     };
+//     xhr.onerror = (e) => {
+//       console.error('HEAD err: ', e);
+//       reject(e.target.status);
+//     };
+//     xhr.send();
+//   });
+// }
 
 export function audioBitrate (length, duration) {
   var br = ((length / duration) / 100)|0;
@@ -130,16 +185,44 @@ export function compareInLower (a, b) {
   return a.toLowerCase() === b.toLowerCase();
 }
 
-export function asyncDoByChunk (arr, fn, size = 10, timeout = 0) {
+export function asyncDoByChunk (arr, fn, size = 10, timeout = 0, done) {
+  var state = {done: false, abort: function abort () {
+    timers.forEach(clearTimeout);
+  }};
+  var timers = [];
   var chunksCount = ((arr.length / size)|0) + 1;
-  for(var i = 0; i < chunksCount; i++) {
+  // for(var i = 0; i < chunksCount; i++) {
+  var i = -1; while (i++ < chunksCount) {
     (function(i) {
-      setTimeout(() => {
+      var ti = setTimeout(() => {
+        timers.shift();
         var remainsLength = Math.min((i+1)*size, arr.length);
         for(var k = i*size; k < remainsLength; k++) {
-          fn(arr[k], k);
+          fn(arr[k], k, arr);
         }
-      }, i*timeout);
+        if(!timers.length) {
+          state.done = true;
+          done && done(arr);
+        }
+      }, (i+1)*timeout);
+      timers.push(ti);
     })(i);
   }
+  return state;
+}
+
+export function arrPush (arr, some) {
+  if(some instanceof Array)
+    this.arr.push.apply(arr, some);
+  else
+    arr.push(some);
+  return arr;
+}
+
+export function arrSplice (arr, i, k, some) {
+  if(some instanceof Array)
+    this.arr.splice.apply(arr, [i,k].concat(some));
+  else
+    arr.splice(i, k, some);
+  return arr;
 }

@@ -1,8 +1,6 @@
 <script lang="babel">
 import '../filters/slice';
-const ALERT_TIMEOUT = 2000;
-
-export var alerts = [];
+import alerts from '../alerts.service';
 
 export default {
   data () {
@@ -10,17 +8,16 @@ export default {
   },
   created () {
     this.$root.$on('alert', (alert) => {
-      this.alerts.push(alert);
-      setTimeout(()=>{
-        this.alerts.$remove(alert);
-      }, ALERT_TIMEOUT * this.alerts.length);
+      this.alerts.add(alert);
     });
   }
 }
 </script>
 <template lang="jade">
 .alerts
-  .alert(v-for="alert in alerts | slice 2", transition="translateX") {{alert}}
+  .alert(v-for="alert in alerts | slice 2", transition="translateX") 
+    h2(v-if="alert.type") {{alert.type}}
+    p {{alert.text}}
 </template>
 <style lang="stylus">
 

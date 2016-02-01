@@ -10,16 +10,8 @@ export default {
   data: UserSection.data,
   route: UserSection.route,
   methods: {
-    getEntityMethod: function () {
-      var req;
-      if(this.entity === 'posts') req = this.getWall();
-      else if (this.entity === 'audios') req = this.getAudios();
-      return req;
-    },
-    getAudios: function () { return VK.getAudios(-this.id, this.items) },
-    getWall: function () { return VK.getWall(-this.id, this.items) },
-    getUser: (id) => VK.getGroup(id),
-    // getFriends: (id) => VK.getFriends(id)
+    getProfile: (userId) => VK.getGroup(userId),
+    loadScroll: UserSection.methods.loadScroll,
   },
   created: UserSection.created,
 }
@@ -27,21 +19,17 @@ export default {
 </script>
 <template lang="jade">
 
-section.user-section.group-section
-  header 
+section.user-section(v-detect-scroll)
+  header.header-profile
     .user-name {{user.name}}
     img.user-avatar(:src="user.photo_100")
   .entity
-    button.entity-audios(v-link="{path: '/club/' + id + '/audios'}") Audios
-    button.entity-posts(v-link="{path: '/club/' + id + '/posts'}") Posts
-    //- button.entity-groups(v-link="{path: '/user/' + userId + '/groups'}") Groups
-    //- button.entity-friends(v-link="{path: '/user/' + userId + '/friends'}") Friends
-  .loading-beach(v-show="$loadingRouteData", transition="fade") ...loading beach
-  div(v-if="items.length", transition="fade")    
-    div(:is="entity", :items="items", transition="fade")
-  //- post-list(:posts="items", v-if="entity === 'posts' && items.length", transition="fade")
-  //- audio-list(:audios="items", v-if="entity === 'audios' && items.length", transition="fade")
-  //- friend-list(:friends="items", v-if="entity === 'friends' && items.length", transition="fade")
+    button.entity-audios(v-link="{name: 'club-audios', params: {userId: userId}}") Audios
+    button.entity-posts(v-link="{name: 'club-posts', params: {userId: userId}}") Posts
+    //- button.entity-groups(v-link="{name: 'user', params: {id: id, entity: 'groups'}}") Groups
+    //- button.entity-friends(v-link="{name: 'user', params: {id: id, entity: 'friends'}}") Friends
+  .loading-beach(v-show="$loadingRouteData") ...loading beach
+  router-view(keep-alive, transition="fade", :group="true")
 
 </template>
 <style lang="stylus">

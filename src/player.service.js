@@ -1,90 +1,70 @@
 import Vue from 'vue';
 import VK from './vk.service';
 import LastFM from './lastfm.service';
-import {audioBitrate, storage, $httpContentLength} from './utils';
+import PlayerAudio  from './PlayerAudio';
+import * as _ from './utils';
+import alerts from './alerts.service';
 
-var audio;
+var audio, i;
+var playlistId = 0;
 
-class PlayerAudio {
-  constructor (d) {
-    if(d instanceof PlayerAudio)
-      return d;
-    if(d.$playable)
-      return Vue.util.extend(this, d);
-    this.artist = d.artist.name || d.artist;
-    this.title = d.title || d.name;
-    this.$suggested = null;
-
-    if(d.url) {
-      this.$playable = d;
-      this.setBitrate(this.$playable);
-    }
-  }
-  async search () {
-    this.$suggested = this.$suggested || [];  
-    var items = await VK.searchAudios(this.artist + ' ' + this.title);
-    items = await VK.findBestQualityAudio(items, this.artist, this.title);  
-    this.$suggested.splice(null);
-    this.$suggested.push.apply(this.$suggested, items);  
-    if(!this.$playable)
-      this.$playable = items[0];
-    if(!this.$playable) {
-      console.error('no audio suggesting for', this);
-      return false;
-    }
-    return this.$suggested;
-  }
-  scrobble () {
-    LastFM.scrobble({artist: this.artist, track: this.title, 
-      timestamp: (Date.now()/1000-this.$playable.duration/1.5)|0});
-  }
-  setPlayable (suggested) {
-    this.$playable = suggested
-    // player.play(this);
-  }
-  async searchAndPlay () {
-    var find = await this.search();
-    if(!find) 
-      return false;
-    player.play(this);
-    return this;
-  }
-  setBitrate (playable) {
-    if(playable.$bitrate || !playable.duration)
-      return false;
-    return $httpContentLength(playable.url).then((length) => {
-      playable.$bitrate = audioBitrate(length, playable.duration);
-      storage.set('player-last-audio', this);
-      return this;
-    });
-  }
-}
-
-if(typeof window.ontouchstart === 'object')
-  document.addEventListener('touchstart', function(){
-    !!audio && !!player.paused && audio.play();
-  }, true);
-var player = {
-  audioInfo: {artist: 'None', title: 'None', $playable: {}},
-  seek: 0,
-  volume: 1,
-  buffered: 0,
-  paused: true,
+// var toggledByTouch;
+// if(typeof window.ontouchstart === 'object')
+//   document.addEventListener('touchstart', function(){
+//     if (!!audio && !!player.paused) {
+//       player.playAudio();
+//       toggledByTouch = setTimeout(() => toggledByTouch = null, 100);
+//     }
+//   });
+var PlayerPrototype = {
   init () {
     this.onCanplaythrough = this.onCanplaythrough.bind(this);
     this.onProgress = this.onProgress.bind(this);
     this.onTimeupdate = this.onTimeupdate.bind(this);
+    this.onError = this.onError.bind(this);
     this.play = this.play.bind(this);
 
-    var cachedAudioInfo = storage.get('player-last-audio');
-    if(cachedAudioInfo)
-      this.audioInfo = new PlayerAudio(cachedAudioInfo);
-    this.constructAudio(this.audioInfo.$playable.url);
+    _.storage.addEventListener('play', () => this.pauseAudio());
+    this.restore();
+  },
+  restore () {
+    var a = _.storage.get('player-last-audio');
+    var p = _.storage.get('player-last-playlist');
+    if(p && p.length && !isNaN(a)) {
+      this.playlist = p;
+      this.playlist[a] = a = new PlayerAudio(this.playlist[a]);
+      if(!a)
+        this.playlist[0] = a = new PlayerAudio(this.playlist[0]);
+    }
+    if(a && a.$playable) {
+      this.audioInfo = a;
+      this.constructAudio(this.audioInfo.$playable.url);
+    }
   },
   setCurrentTime (seek) {
     audio.currentTime = seek*audio.duration;
   },
-  setPlaylist (playlist) {
+  getAudioPlaylistIndex (audioInfo) {
+    var i;
+    audioInfo = audioInfo || this.audioInfo;
+    i = this.playlist.indexOf(this.audioInfo)
+    return i;
+  },
+  addToPlaylist (some, where) {
+    var i = this.getAudioPlaylistIndex();
+    if(~i && where === true) // next
+      return _.arrSplice(this.playlist, i+1, 0, some);
+    else // after
+      return _.arrPush(this.playlist, some);
+    this.playlist.saved = false;
+    this.save();
+  },
+  setPlaylist (playlist, where) {
+    var id = ++playlistId;
+    playlist.$id = id;
+    this.playlist = playlist.slice(0, 500);
+    this.playlist.$id = id;
+    this.save();
     // var i = playlist.indexOf(this.audioInfo);
     // if(i !== -1) {
     //   this.playlist = playlist.slice(i, playlist.length).concat(playlist.slice(0, i+1));
@@ -92,10 +72,9 @@ var player = {
     // } else {
     //   this.playlist = playlist;
     // }
-    this.playlist = playlist;
   },
   playNext () {
-    var i = this.playlist.indexOf(this.audioInfo);
+    var i = this.getAudioPlaylistIndex();
 
     if(this.playlist.length) {
       if(i < 0) {
@@ -106,61 +85,90 @@ var player = {
         this.play(this.playlist[i+1]);
       }
     }
+    this.save();
   },
 
-  setBitrate (audioInfo) {
-    var url = audioInfo.$playable ? audioInfo.$playable.url : audioInfo.url;
-    if(audioInfo.$bitrate)
-      return;
-    $httpContentLength(url).then((length) => {
-      audioInfo.$bitrate = audioBitrate(length, audioInfo.duration);
-      storage.set('player-last-audio', audioInfo);
+  setBitrate (_audios) {
+    if(!VK.serverAuthed) {
+      alerts.add({type: 'Player', text: 'To display audio quality (bitrate) you should login out server with VK.'});
+      return Promise.reject();
+    }
+    var audios = _audios.map((audio) => {
+      var a = audio.$playable || audio;
+      return a.owner_id + '_' + a.id;
     });
+    return VK.getAudiosContentLength(audios).then((lengths) => {
+      _audios.forEach((audio, i) => {
+        var a = audio.$playable || audio;
+        a.$bitrate = _.audioBitrate(lengths[i], a.duration);
+      });
+      return _audios;
+    }).catch(d => console.error('setBitrate: error', d));
   },
-  // async searchAndPlay (track, playlist) {
-  //   var items = await VK.searchAudios(track.artist + ' ' + track.name);
-  //   items = await VK.findBestQualityAudio(items, track.artist, track.name);  
-  //   track.$suggested = items;  
-  //   track.$playable = items[0];
-  //   this.play(track, playlist);
-  //   // console.log('play', items);
-  // },
+
   constructAudio (url) {
     audio = new Audio();
     // audio.volume = this._volume = .1; // be quiet
-    audio.src = url;
+    audio.src = url.split('extra')[0];
+    audio.addEventListener('error', this.onError);
     audio.addEventListener('canplaythrough', this.onCanplaythrough);
   },
   togglePause () {
     if(audio) {
       if(this.paused && audio.paused) {
         this.playAudio()
-      } else {
+      } else if (!toggledByTouch) {
         this.pauseAudio();
         this.paused = true;
       }
     }
   },
+  save: (function(){
+    var async;
+    return function () {
+      var that = this;
+      if(this.playlist.saved) {
+        _.storage.set('player-last-audio', this.audioInfo);
+        return;
+      }
+      this.playlist.saved = false;
+      if(async && !async.done)
+        async.abort();
+      async = _.asyncDoByChunk(
+        this.playlist,
+        (audio, i, playlist) => audio instanceof PlayerAudio || (playlist[i] = new PlayerAudio(audio)),
+        3, 300, 
+        (playlist) => {
+          _.storage.set('player-last-playlist', playlist);
+          _.storage.set('player-last-audio', that.getAudioPlaylistIndex());
+          that.playlist.saved = true;
+        }
+      );
+      _.storage.set('player-last-audio', this.audioInfo);
+    }
+  })(),
   play (audioInfo, playlist) {
     var playlistIndex;
-
-    if(playlist && playlist.length) {
-      this.setPlaylist(playlist);
+    _.storage.emit('play');
+    if(playlist && playlist.length)
       playlistIndex = playlist.indexOf(audioInfo);
+    if(playlist && playlist.length 
+        && (!this.playlist.$id || playlist.$id !== this.playlist.$id)) {
+      this.setPlaylist(playlist);
     } else {
       playlist = this.playlist;
-      playlistIndex = playlist.indexOf(audioInfo);
     }
     if(!(audioInfo instanceof PlayerAudio)) {
       audioInfo = new PlayerAudio(audioInfo);
-      if(playlistIndex != null && playlistIndex > -1)
+      if(playlistIndex !== null && playlistIndex > -1) 
         playlist[playlistIndex] = audioInfo;
     }
     if(!audioInfo.$playable)
       return audioInfo.searchAndPlay();
+    else if (!audioInfo.$playable.$bitrate)
+      this.setBitrate([audioInfo]);
 
     this.audioInfo = audioInfo;
-    audioInfo
     // if(!audioInfo && this.audioInfo.id)
     //   return this.play(this.audioInfo);
     // console.log(audioInfo)
@@ -191,10 +199,11 @@ var player = {
     // this.setBitrate(this.audioInfo);
     // console.log('playlist ', this.playlist);
     this.playAudio(audio);
+    // this.audioPlaylistIndex = getAudioPlaylistIndex() + 1;
 
   },
-  playAudio (_audio) {
-    if(!(_audio = _audio || audio))
+  playAudio (_audio = audio) {
+    if(!_audio)
       return false;
     _audio.volume = this.volume;
     _audio.play();
@@ -202,22 +211,29 @@ var player = {
     return true;
   },
   // playingTimeTimer: null,
-  pauseAudio (_audio) {
-    if(!(_audio = _audio || audio) || _audio.paused)
+  pauseAudio (_audio = audio) {
+    var that = this;
+    if(!_audio || _audio.paused)
       return false;
     var steps = Math.round(_audio.volume / .02);
     var timeout = 500 / steps;
     function g (step) {
       setTimeout (function () {
         var vol = _audio.volume - .02;
-        if(vol < 0)
+        if(vol < 0) {
+          that.checkPaused();
           return _audio.pause();
+        }
         _audio.volume = vol;
         g(step);
       }, timeout);
     }
     g(0);
     return true;
+  },
+  onError (d) {
+    console.log(d);
+    this.audioInfo.updatePlayable();
   },
   onCanplaythrough () {
     this.checkPaused();
@@ -250,8 +266,19 @@ var player = {
   }
 }
 
-window._player = player;
+
+var player = Object.create(PlayerPrototype);
+Vue.util.extend(player, {
+  audioInfo: {artist: 'None', title: 'None', $playable: {}},
+  seek: 0,
+  volume: 1,
+  buffered: 0,
+  paused: true,
+  playlist: [],
+});
 
 player.init();
+window._player = player;
+
 
 export default player

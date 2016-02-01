@@ -38,7 +38,7 @@ export default {
   components: {Alerts, Player, MenuLeft, LfmArtist},
   data () {
     return { 
-      authed: VK.authed, 
+      vk: VK, 
       currentAudio: player.audioInfo,
       menuLeftToggled: false,
       lfmData: null,
@@ -67,13 +67,13 @@ export default {
 </script>
 <template lang="jade">
 
-menu-left
+menu-left(v-show="menuLeftToggled")
+//- #vk_api_transport
 #wrapper(:class="{'menu-left-toggled': menuLeftToggled}")
   button.menu-left-toggle(@click="menuLeftToggled = !menuLeftToggled") menu-left
-  .splash-start(v-show="!isAuthed")
+  .splash-start(v-show="!vk.authed")
     button(@click="vkAuth") vk auth
-    button(@click="lfmAuth") lastfm auth
-  router-view(v-audio-current="currentAudio.id", keep-alive)
+  router-view(v-if="vk.authed", v-audio-current="currentAudio.$playable.id", keep-alive, transition="translateX")
   player
   alerts
 

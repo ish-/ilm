@@ -47,15 +47,18 @@ export default {
       this.scrollTop = {};
       this.user = {};
 
-      return {user: VK.getUsers(this.userId)};
+      return {user: this.getProfile(this.userId)};
+      // return {user: VK.getUsers(this.userId)};
     },
     deactivate () {
       this.scrollTop[this.routeName] = this.$el.scrollTop;
     }
   },
   methods: {
+    getProfile: userId => VK.getUsers(userId),
     loadScroll (routeName) {
-      this.scrollTop[this.routeName] = this.$el.scrollTop;
+      if(routeName !== this.routeName)
+        this.scrollTop[this.routeName] = this.$el.scrollTop;
       this.routeName = routeName;
       this.$nextTick(() => {
         console.log(this.$el.scrollHeight, routeName, this.scrollTop[routeName]);
@@ -106,7 +109,7 @@ section.user-section(v-detect-scroll)
     //- button.entity-groups(v-link="{name: 'user', params: {id: id, entity: 'groups'}}") Groups
     //- button.entity-friends(v-link="{name: 'user', params: {id: id, entity: 'friends'}}") Friends
   .loading-beach(v-show="$loadingRouteData") ...loading beach
-  router-view(v-ref:entity, keep-alive)
+  router-view(keep-alive, transition="fade")
   //- div(v-if="items.length", transition="fade")    
   //-   div(:is="entity", :items="items", transition="fade")
   //- post-list(:posts="items", v-if="entity === 'posts' && items.length", transition="fade")
@@ -115,28 +118,6 @@ section.user-section(v-detect-scroll)
 
 </template>
 <style lang="stylus">
-
-.translateX
-  &-transition
-    transition: all .5s;
-    opacity: 1
-    transform: translateX(0px)
-  &-enter
-    transform: translateX(100px)
-    opacity: 0
-  &-leave
-    opacity: 0;
-    transform: translateX(-100px)
-
-
-.fade-transition
-  transition: all .5s;
-  opacity: 1
-  transform: translateY(0px)
-.fade
-  &-enter, &-leave
-    transform: translateY(-100px)
-    opacity: 0
 
 .user-section
   // background: black

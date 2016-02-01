@@ -1,6 +1,7 @@
 var path = require('path');
 
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
+var webpack = require("webpack");
 
 module.exports = {
   entry: ['./src/main.js'],
@@ -26,8 +27,17 @@ module.exports = {
   // resolve: {
   //     extensions: ['es6']
   // }
+  // resolve: {
+  //   modulesDirectories: ['bower_components'],
+  // },
+  resolve: {
+        root: [path.join(__dirname, "bower_components")]
+    },
   plugins: [
     new ExtractTextPlugin("./dist/bundle.css"),
+    new webpack.ResolverPlugin(
+        new webpack.ResolverPlugin.DirectoryDescriptionFilePlugin(".bower.json", ["main"])
+    )
   ],
   vue: {
     loaders: {
@@ -41,7 +51,6 @@ module.exports = {
   stylus: {
       use: [require('nib')()],
       import: ['~nib/lib/nib/index.styl'],
-      // import: ['~nib/lib/nib/index.styl']
   }
 };
 

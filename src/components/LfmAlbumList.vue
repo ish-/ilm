@@ -41,6 +41,9 @@ export default {
     //     })
     //   }
     // },
+    getAlbumImage (album) {
+      return album.image.large || album.image.medium || album.image.small || '';
+    },
     getPlaycountWidth (playcount) {
       return (playcount / this.items.$maxPlaycount * 80 || 0) + '%';
     },
@@ -65,21 +68,29 @@ export default {
 </script>
 <template lang="jade">
 
-ul.artist-albums
-  li.artist-album(v-for="album in albums | _hideAByMbid hideAByMbid | orderBy 'year'", @click="goToAlbum(album)", transition="fade") 
-    span.artist-album-name {{* album.name}}
-    img.artist-album-cover(:src="album.image[2]['#text']")
-    .artist-album-date {{album.date}}
-    .artist-album-playcount(style="width: {{* getPlaycountWidth(album.playcount)}}")
+ul.lfm-artist-albums
+  li.lfm-artist-album(v-for="album in albums | _hideAByMbid hideAByMbid | orderBy 'year'", @click="goToAlbum(album)", transition="fade") 
+    span.lfm-artist-album-name {{* album.name}}
+    .lfm-artist-album-cover(style="background-image: url(' {{{* getAlbumImage(album) }}} ');")
+    .lfm-artist-album-date {{album.date}}
+    .lfm-artist-album-playcount(style="width: {{* getPlaycountWidth(album.playcount)}}")
 </template>
 <style lang="stylus">
 
-.artist-album
+.lfm-artist-album
   padding: 16px
   color: black
-  height: 78px
+  height: 80px
   position: relative
   border-top: 1px solid #EBEBEB
+
+  // &-year
+  //   position: absolute
+  //   top: 10px
+  //   right: 10px
+  //   color: white
+  //   text-shadow: 0 0 3px black
+  //   font-size: 10px
 
   &:first-child
     border-top: 0px
@@ -90,7 +101,8 @@ ul.artist-albums
     absolute: bottom 1px right 0
 
   &-cover
-    float: right
+    absolute: top right
+    background-size: 100%
     size: 80px
 
   &-name
@@ -101,6 +113,6 @@ ul.artist-albums
     text-overflow: ellipsis
   &-date
     font-weight: bold
-    absolute: bottom 16px left 16px
+    absolute: bottom 3px left 30%
 
 </style>

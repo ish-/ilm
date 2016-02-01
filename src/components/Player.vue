@@ -19,7 +19,7 @@ var seekMouseDown = false;
 export default {
   name: 'PlayerView',
   data () {
-    return {player, showSuggested: false}
+    return {player, showSuggested: false, showPlaylist: false, audioPlaylistInfo: ''}
   },
   methods: {
     playSuggested (audio) {
@@ -62,10 +62,28 @@ export default {
     logAudioInfo () {
       console.log(player.audioInfo);
       this.$log(player.audioInfo);
+    },
+    updatePlayListInfo () {
+      console.log('updatePlayListInfo');
+      var i = player.getAudioPlaylistIndex() + 1;
+      var l = player.playlist.length;
+      if(!l)
+        return this.audioPlaylistInfo = '';
+      return this.audioPlaylistInfo = `(${i}/${l})`;
+    }
+  },
+  filters: {
+    reverse (arr) {
+      return arr.slice().reverse();
     }
   },
   created () {
-    this.$watch('player.audioInfo', this.toggleSuggested.bind(this, false));
+    this.$watch('player.audioInfo', () => {
+      this.updatePlayListInfo();
+      this.toggleSuggested(false); 
+    });
+    this.$watch('player.playlist.length', this.updatePlayListInfo);
+    this.updatePlayListInfo();
   }
   // components: {
   //   'player-seek': PlayerSeek,
@@ -83,6 +101,12 @@ export default {
       .audio-bitrate(v-if="audio.$bitrate") ({{ audio.$bitrate }}kbps)
       .audio-artist {{* audio.artist}}
       .audio-title {{* audio.title}} ({{* audio.duration | audioDuration}})
+.playlist(v-if="showPlaylist", transition="fade"): .playlist-container
+  .audio(v-for="audio in player.playlist", @click="player.play(audio)")
+    .audio-container(class="aid-{{* audio.id}}")
+      .audio-bitrate(v-if="audio.$bitrate !== 0") ({{ audio.$bitrate }}kbps)
+      .audio-artist {{* audio.artist}}
+      .audio-title {{* audio.title}} ({{* audio.duration | audioDuration}})
 .player(:class="{'no-audio': !player.audioInfo.artist}")
   .audio-seek(v-el:seek, @mouseup="seekOnClick", @mouseout="seekOnMouseOut", @mousedown="seekOnMouseDown", @mousemove="seekOnMouseMove")
     .audio-progress(v-bind:style="{transform: 'translateX(-'+(100 - player.seek*100) + '%)'}")
@@ -93,6 +117,7 @@ export default {
     .audio-title 
       span(@click="player.audioInfo.scrobble()") {{player.audioInfo.title || player.audioInfo.name}} 
       button(@click="toggleSuggested") {{player.audioInfo.$playable.$bitrate}}kbps
+    .playlist-info(@click="showPlaylist = !showPlaylist") {{audioPlaylistInfo}}
 </template>
 <style lang="stylus">
 .audio-suggested
@@ -114,6 +139,16 @@ export default {
     vertical-align: top
     font-size: 13px
 
+.playlist
+  background: #4c4c4c
+  fixed: top bottom 56px left right
+  padding-bottom: 36px
+  .playlist-container
+    padding-bottom: 36px
+    absolute: bottom left right
+    overflow-y: auto
+    max-height: 100%
+
 .player {
   position: fixed;
   bottom: 0; left: 0; right: 0;
@@ -124,6 +159,10 @@ export default {
 
   transition: .2s transform;
   transform: translateY(0px);
+
+  .playlist-info {
+    absolute: right 10px bottom 10px
+  }
 }
 
 .player.no-audio {

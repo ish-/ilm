@@ -5,7 +5,7 @@ import Player from '../player.service';
 export default {
   props: {
     artist: Object,
-    items: Array,
+    tracks: Array,
     hideByMbid: {
       default: true
     }
@@ -15,27 +15,31 @@ export default {
   // },
   filters: {
     _hideTByMbid (arr, hide) {
+      if(!arr)
+        return;
       return !hide ? arr : arr.filter((a, i) => a.mbid || i < 15);
     }
   },
   methods: {
     play (track) {
-      Player.play(track, this.items);
+      if(!VK.serverAuthed)
+        return alerts.add({text: 'To play music from LastFM you should login our VK bitrate detection server.'})
+      Player.play(track, this.tracks);
     },
     getPlaycountWidth (track) {
-      // console.log(track.listeners, track.playcount, this.items.$maxListeners);
-      return (+(track.listeners || track.playcount) / this.items.$maxListeners * 50 || 0) + '%';
+      // console.log(track.listeners, track.playcount, this.tracks.$maxListeners);
+      return (+(track.listeners || track.playcount) / this.tracks.$maxListeners * 50 || 0) + '%';
     }
   },
   // created () {
-  //   if(!this.items)
-  //     this.items = this.artist.tracks;
+  //   if(!this.tracks)
+  //     this.tracks = this.artist.tracks;
   // }
 }
 </script>
 <template lang="jade">
 ul.artist-tracks
-  li.artist-track(href="{{track.name}}", v-for="track in items | _hideTByMbid hideByMbid", @click="play(track)", transition="translateX") {{track.name}}
+  li.artist-track(href="{{track.name}}", v-for="track in tracks | _hideTByMbid hideByMbid", @click="play(track)", transition="translateX") {{track.name}}
     .artist-track-listeners(style="width: {{* getPlaycountWidth(track)}}")
   button.artist-tracks-show-all(@click="hideByMbid = false", v-show="hideByMbid") show all
 </template>
@@ -62,9 +66,11 @@ ul.artist-tracks
     text-align: right
     color: #3A9AA2
     font-size: 11px
-    width: 50%
+    width: 0%
     border-radius: 5px
     z-index: -1
+    transition: .4s width
+    transition-delay: 1s
 
   .artist-tracks-show-all
     font-size: 14px

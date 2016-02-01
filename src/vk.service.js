@@ -1,30 +1,46 @@
-import {compareInLower, audioBitrate, $jsonp, storage, arrFind, $httpContentLength} from './utils';
+import {compareInLower, $jsonp, $http, storage, arrFind} from './utils';
+import player from './player.service';
+import alerts from './alerts.service';
 
+
+const ALERT_TYPE = 'VK Service';
+const ALERT_TYPE_SERVER = 'Our VK Bitrate Detection Service';
 const POST_ATTACHMENT_TYPE = {
   AUDIO: 'audio',
   PHOTO: 'photo'
 }
 
+var ACCESS_TOKEN;
+
 class VK {
   constructor () {
-    this._token = null;
     this.userId = 0;
     this.authed = false;
+    this.serverAuthed = false;
 
-    this._token = storage.get('vk-token');
-    if(!this._token && location.hash) {
+    ACCESS_TOKEN = storage.get('vk-token');
+    if(!ACCESS_TOKEN && location.hash) {
       let hash = location.hash.slice(1).split('&').reduce(function(mem, str){
         let _str = str.split('=');
         mem[_str[0]] = _str[1];
         return mem;
       }, {});
-      hash['access_token'] && (this._token = hash['access_token']);
-      storage.set('vk-token', this._token);
+      hash['access_token'] && (ACCESS_TOKEN = hash['access_token']);
+      storage.set('vk-token', ACCESS_TOKEN);
       storage.set('vk-userId', this.userId = +hash['user_id']);
     } else {
       this.userId = +storage.get('vk-userId');
     }
-    this.authed = !!this._token;
+    this.authed = !!ACCESS_TOKEN;
+    // this.openAuth();
+  }
+
+  openAuth () {
+    var opts = {
+      url: "https://login.vk.com/",
+      search: ["act=openapi", "oauth=1", "aid=3430394", "location=ilm.dev", "new=1"],
+    };
+    $jsonp(opts).then(d => console.log(d));
   }
 
   removeAuth () {
@@ -38,9 +54,11 @@ class VK {
   }
 
   _request (opts) {
-    if(!this.authed)
+    if(!this.authed) {
+      alerts.add({type: ALERT_TYPE, text: 'You\'re not authenticated'})
       return Promise.reject(new Error('no auth'));
-    opts.search = ['access_token=' + this._token, 'v=5.42'];
+    }
+    opts.search = ['access_token=' + ACCESS_TOKEN, 'v=5.42'];
     if (opts.data) {
       for(let key in opts.data) {
         opts.search.push(`${key}=${opts.data[key]}`);
@@ -48,8 +66,10 @@ class VK {
     }
     opts.url = 'https://api.vk.com/method/' + opts.url;
     return $jsonp(opts).catch((d) => {
-      if(d && d.error && d.error.error_code === 5)
+      if(d && d.error && d.error.error_code === 5) {
+        alerts.add({type: ALERT_TYPE, text: 'Authentication failed. Please relogin in vk.com'})
         this.removeAuth();
+      }
     });
   }
 
@@ -108,12 +128,33 @@ class VK {
   //     return items;
   //   });
   // }
-  setBitrate (audioInfo) {
-    return $httpContentLength(audioInfo.url).then((length) => {
-      audioInfo.$bitrate = audioBitrate(length, audioInfo.duration);
-      return audioInfo;
+
+  // setBitrate (audios) {}
+  serverAuth = () => {
+    var listener = storage.addEventListener('auth:server', () => {
+      that.serverAuthed = true;
+      listener();
+      w.close();
+    });
+    var w = window.open('https://oauth.vk.com/authorize?client_id=3430394&display=page&redirect_uri=http://ilm.dev/api/auth/&scope=friends,offline,audio&response_type=code&v=5.44');
+  };
+
+  getAudiosContentLength (audios) { // string[] : ${owner_id}_${id}
+    return $http({
+      method: 'POST',
+      url: '/api/audio/content-length',
+      data: audios,
+    }).catch((d) => {
+      alerts.add({type: ALERT_TYPE_SERVER, text: 'Authentication failed.'});
     });
   }
+
+  // setBitrate (audioInfo) {
+  //   retur(audioInfo.url).then((length) => {
+  //     audioInfo.$bitrate = audioBitrate(length, audioInfo.duration);
+  //     return audioInfo;
+  //   });
+  // }
 
   async findBestQualityAudio (arr, artist, title) {
 
@@ -133,8 +174,8 @@ class VK {
       // var exactPromiseAll = 
       // console.log(exact, arr.length)
       var _d = Date.now();
-      var exactBitrates = await Promise.all(exact.map((i) => this.setBitrate(arr[i])))
-        .then((i) => {console.log(i); return i});
+      var exactBitrates = await player.setBitrate(exact.map(i => arr[i]));
+        // .then((i) => {console.log(i); return i});
       // console.log(Date.now() - _d);
       var exactFind = arrFind(exactBitrates, (a) => a.$bitrate > 300);
       // console.log(exactFind);
@@ -162,7 +203,7 @@ class VK {
     if (ownerIsUser && !dropCache) {
       var userCachedAudios = storage.get('user-cached-audios');
       if(userCachedAudios && userCachedAudios.length)
-        return new Promise(function(resolve) {resolve(userCachedAudios)});
+        return Promise.resolve(userCachedAudios);
     }
 
     var offset = _items && _items.length ? _items.length : 0;
@@ -252,7 +293,7 @@ class VK {
   }
 
   getWall (userId, _items, length = 0) {
-    var count = 30;
+    var count = 15;
     var isArray = _items && _items.length != null;
     if(isArray && (_items.$loading || _items.$count <= _items.$offset))
       return;
@@ -266,7 +307,7 @@ class VK {
         length += items.length;
         items.$offset = offset+count;
         // console.log(offset, d.count, length);
-        if(length < 10 && count + offset < d.count) {
+        if(length < 7 && count + offset < items.$count) {
           items.$loading = true;
           return new Promise((resolve) => {
             setTimeout(() => {

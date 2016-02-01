@@ -1,0 +1,14 @@
+{
+  "name": "FileSaver.js",
+  "homepage": "https://github.com/Keepsite/FileSaver.js",
+  "_release": "6f6d418ed0",
+  "_resolution": {
+    "type": "branch",
+    "branch": "master",
+    "commit": "6f6d418ed0d961f586b16a467c209553da2a923f"
+  },
+  "_source": "git://github.com/Keepsite/FileSaver.js.git",
+  "_target": "*",
+  "_originalSource": "Keepsite/FileSaver.js",
+  "_direct": true
+}

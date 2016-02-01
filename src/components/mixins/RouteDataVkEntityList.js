@@ -5,7 +5,7 @@ var RouteDataVkEntityList = {
       var userId = trnstn.to.params.userId;
       if(this.userId === userId) {
         trnstn.next();
-        this.restoreScroll();
+        // this.restoreScroll();
         return;
       }
       this.userId = userId;
@@ -14,14 +14,14 @@ var RouteDataVkEntityList = {
       return {items: this.getEntity()};
       // return {items: VK.getWall(this.userId, this.items)};
     },
-    deactivate () {
-      this.scrollTop = this.$el.scrollTop || 0;
-    },
-  },
-  methods: {
-    restoreScroll () {
-      this.$nextTick(d => this.$el.scrollTop = this.scrollTop);
-    }
+  //   deactivate () {
+  //     this.scrollTop = this.$el.scrollTop || 0;
+  //   },
+  // },
+  // methods: {
+  //   restoreScroll () {
+  //     this.$nextTick(d => this.$el.scrollTop = this.scrollTop);
+  //   }
   }
 };
 

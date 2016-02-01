@@ -1,9 +1,10 @@
 import Vue from 'vue';
 import {throttle} from '../utils';
-
+var _ = {mediator: {}};
 Vue.directive('detect-scroll', {
     params: ['onEndClose'],
     bind () {
+      _.mediator = this.vm;
       this.throttledOnScroll = throttle(function (e) {
         var $el = this.el;
         if($el.scrollHeight - $el.offsetHeight - 500 < $el.scrollTop) {
@@ -20,3 +21,5 @@ Vue.directive('detect-scroll', {
       this.el.removeEventListener('scroll', this.throttledOnScroll);
     }
 });
+
+export default _;
