@@ -1,6 +1,8 @@
-import {compareInLower, $jsonp, $http, storage, arrFind} from './utils';
-import player from './player.service';
-import alerts from './alerts.service';
+import * as _ from './utils';
+import Player from './player.service';
+import PlayerAudio from './PlayerAudio';
+import Alerts from './alerts.service';
+import Modals from './modal.service';
 
 
 const ALERT_TYPE = 'VK Service';
@@ -16,9 +18,9 @@ class VK {
   constructor () {
     this.userId = 0;
     this.authed = false;
-    this.serverAuthed = false;
+    this.serverAuthed = _.storage.get('vk-server-authed') || false;
 
-    ACCESS_TOKEN = storage.get('vk-token');
+    ACCESS_TOKEN = _.storage.get('vk-token');
     if(!ACCESS_TOKEN && location.hash) {
       let hash = location.hash.slice(1).split('&').reduce(function(mem, str){
         let _str = str.split('=');
@@ -26,36 +28,36 @@ class VK {
         return mem;
       }, {});
       hash['access_token'] && (ACCESS_TOKEN = hash['access_token']);
-      storage.set('vk-token', ACCESS_TOKEN);
-      storage.set('vk-userId', this.userId = +hash['user_id']);
+      _.storage.set('vk-token', ACCESS_TOKEN);
+      _.storage.set('vk-userId', this.userId = +hash['user_id']);
     } else {
-      this.userId = +storage.get('vk-userId');
+      this.userId = +_.storage.get('vk-userId');
     }
     this.authed = !!ACCESS_TOKEN;
     // this.openAuth();
   }
 
-  openAuth () {
-    var opts = {
-      url: "https://login.vk.com/",
-      search: ["act=openapi", "oauth=1", "aid=3430394", "location=ilm.dev", "new=1"],
-    };
-    $jsonp(opts).then(d => console.log(d));
-  }
+  // openAuth () {
+  //   var opts = {
+  //     url: "https://login.vk.com/",
+  //     search: ["act=openapi", "oauth=1", "aid=3430394", "location=ilm.dev", "new=1"],
+  //   };
+  //   _.$jsonp(opts).then(d => console.log(d));
+  // }
 
   removeAuth () {
     this.authed = false;
-    storage.remove('vk-token');
-    storage.remove('vk-userId');
+    _.storage.remove('vk-token');
+    _.storage.remove('vk-userId');
   }
 
   auth () {
-    location.href = 'https://oauth.vk.com/authorize?client_id=3430394&redirect_uri='+encodeURIComponent(location.href)+'&display=popup&response_type=token&scope=wall,audio,groups,friends';
+    location.href = 'https://oauth.vk.com/authorize?client_id=3430394&redirect_uri='+encodeURIComponent(location.href)+'&display=popup&response_type=token&scope=wall,audio,groups,friends,offline';
   }
 
   _request (opts) {
     if(!this.authed) {
-      alerts.add({type: ALERT_TYPE, text: 'You\'re not authenticated'})
+      Alerts.add({type: ALERT_TYPE, text: 'You\'re not authenticated'})
       return Promise.reject(new Error('no auth'));
     }
     opts.search = ['access_token=' + ACCESS_TOKEN, 'v=5.42'];
@@ -65,12 +67,26 @@ class VK {
       }
     }
     opts.url = 'https://api.vk.com/method/' + opts.url;
-    return $jsonp(opts).catch((d) => {
+    var req = _.$jsonp(opts)
+    req.catch((d) => {
       if(d && d.error && d.error.error_code === 5) {
-        alerts.add({type: ALERT_TYPE, text: 'Authentication failed. Please relogin in vk.com'})
+        Alerts.add({type: ALERT_TYPE, text: 'Authentication failed. Please relogin in vk.com'})
         this.removeAuth();
       }
     });
+    return req;
+  }
+
+  setLike (type, owner_id, item_id) {
+    return this._request({url: 'likes.add', data: {
+      type, owner_id, item_id
+    }});
+  }
+
+  repost (obj) {
+    return this._request({url: 'wall.repost', data: {
+      object: obj
+    }});
   }
 
   getGroups (userId) {
@@ -95,10 +111,11 @@ class VK {
     });
   }
 
-  getFriends (userId) {
+  getFriends (userId, q) {
     return this._request({
-      url: 'friends.get',
+      url: 'friends.search',
       data: {
+        q: q || '',
         user_id: userId || this.userId,
         order: 'hints',
         fields: 'photo_100',
@@ -130,23 +147,51 @@ class VK {
   // }
 
   // setBitrate (audios) {}
-  serverAuth = () => {
-    var listener = storage.addEventListener('auth:server', () => {
+  serverAuthCheck () {
+    if(this.serverAuthed) 
+      return true;
+    Modals.push({name: 'vk-server-auth'});
+    return false;
+  }
+
+  serverAuth = (done) => {
+    var that = this;
+    var w;
+    var url = 'https://oauth.vk.com/authorize?client_id=3430394&display=page&redirect_uri=http://ilm.dev/api/auth/&scope=friends,offline,audio&response_type=code&v=5.44';
+    var listener = _.storage.addEventListener('auth:server', () => {
       that.serverAuthed = true;
+      _.storage.set('vk-server-authed', true);
       listener();
+      done();
       w.close();
     });
-    var w = window.open('https://oauth.vk.com/authorize?client_id=3430394&display=page&redirect_uri=http://ilm.dev/api/auth/&scope=friends,offline,audio&response_type=code&v=5.44');
+    w = window.open(url);
+    // if(!w)
+    //   location.href = loc;
   };
 
   getAudiosContentLength (audios) { // string[] : ${owner_id}_${id}
-    return $http({
+    var req = _.$http({
       method: 'POST',
       url: '/api/audio/content-length',
       data: audios,
-    }).catch((d) => {
-      alerts.add({type: ALERT_TYPE_SERVER, text: 'Authentication failed.'});
     });
+    req.catch((d) => {
+      if(d === -1)
+        Alerts.add({type: ALERT_TYPE_SERVER, text: 'Data error.'});
+      else if(d.error) {
+        Alerts.add({type: ALERT_TYPE_SERVER, text: 'Authentication failed.'});
+        _.storage.set('vk-server-authed', false);
+      }
+    });
+    return req;
+  }
+
+  addAudio (audio) {
+    return this._request({url: 'audio.add', data: {
+      audio_id: audio.id,
+      owner_id: audio.owner_id,
+    }});
   }
 
   // setBitrate (audioInfo) {
@@ -162,8 +207,8 @@ class VK {
     arr.forEach((a, i) => {
       var isArtist;
       a.$weight = 0;
-      a.$weight += (isArtist = compareInLower(a.artist, artist)) && 2;
-      a.$weight += isArtist && compareInLower(a.title, title) && 3;
+      a.$weight += (isArtist = _.compareInLower(a.artist, artist)) && 2;
+      a.$weight += isArtist && _.compareInLower(a.title, title) && 3;
       if(a.$weight === 5)
         return exact.push(i);
       a.$weight += a.title.startsWith(title) && 2;
@@ -174,10 +219,10 @@ class VK {
       // var exactPromiseAll = 
       // console.log(exact, arr.length)
       var _d = Date.now();
-      var exactBitrates = await player.setBitrate(exact.map(i => arr[i]));
+      var exactBitrates = await Player.setBitrate(exact.map(i => arr[i]));
         // .then((i) => {console.log(i); return i});
       // console.log(Date.now() - _d);
-      var exactFind = arrFind(exactBitrates, (a) => a.$bitrate > 300);
+      var exactFind = _.arrFind(exactBitrates, (a) => a.$bitrate > 300);
       // console.log(exactFind);
     }
 
@@ -197,17 +242,22 @@ class VK {
     }}).then(({count, items}) => items);
   }
 
+  getAudiosById (audios) {
+    return this._request({url: 'audio.getById', data: {
+      audios: audios.map((a) => a.owner_id + '_' + a.id)
+    }});
+  }
   getAudios (ownerId, _items, dropCache) {
     var req;
     var ownerIsUser = !ownerId || +ownerId === this.userId;
     if (ownerIsUser && !dropCache) {
-      var userCachedAudios = storage.get('user-cached-audios');
+      var userCachedAudios = _.storage.get('user-cached-audios');
       if(userCachedAudios && userCachedAudios.length)
         return Promise.resolve(userCachedAudios);
     }
 
     var offset = _items && _items.length ? _items.length : 0;
-    // if (force || !(cache = storage.get('vk-user-audio-cache'))) {
+    // if (force || !(cache = _.storage.get('vk-user-audio-cache'))) {
 
     if(_items && _items.$loading || _items >= 10000)
       return;
@@ -238,12 +288,12 @@ class VK {
     if(ownerIsUser) {
       req.then((items) => {
         setTimeout(()=>{
-          storage.set('user-cached-audios', items);
+          _.storage.set('user-cached-audios', items);
         }, 1000);
       });
     }
       // req.then((d) => {
-      //   storage.set('vk-user-audio-cache', d);
+      //   _.storage.set('vk-user-audio-cache', d);
       //   return d;
       // });
     // }
@@ -284,6 +334,10 @@ class VK {
           var reposted = post.copy_history[0];
           reposted.$owner = profiles[reposted.owner_id] || groups[reposted.owner_id];
         }
+        post.$albumName = null;
+        reposted.$albumName = null;
+        post.reposts.reposted = false;
+        post.likes.liked = false;
         return true;
       } else
         return false;

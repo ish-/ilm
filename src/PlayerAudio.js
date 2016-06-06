@@ -4,6 +4,8 @@ import LastFM from './lastfm.service';
 import player from './player.service';
 import * as _ from './utils';
 
+var updateTimeout;
+
 class PlayerAudio {
   constructor (d) {
     if(typeof d !== 'object')
@@ -11,16 +13,20 @@ class PlayerAudio {
     if(d instanceof PlayerAudio)
       return d;
     if(d.$playable)
-      return Vue.util.extend(this, d);
-    this.artist = d.artist.name || d.artist;
-    this.title = d.title || d.name;
-    this.$suggested = null;
+      Vue.util.extend(this, d);
+    else {
+      this.artist = d.artist.name || d.artist;
+      this.title = d.title || d.name;
+      this.$suggested = null;
+    }
     this.$downloading = false;
+
 
     if(d.url) {
       this.$playable = d;
-      if(!d.$bitrate)
+      if(!d.$bitrate) {
         Vue.set(this.$playable, '$bitrate', 0)
+      }
         // this.$playable.$bitrate = 0;
       // this.setBitrate(this.$playable);
     }
@@ -34,17 +40,26 @@ class PlayerAudio {
     if(!this.$playable)
       this.$playable = items[0];
     if(!this.$playable) {
+      // TODO: place alert here.
       console.error('no audio suggesting for', this);
       return false;
     }
+    if(!this.$playable.$bitrate) {
+      setTimeout(() => {
+        items.some((a) => a.id === this.$playable.id && (this.$playable.$bitrate = a.$bitrate))
+      });
+    }
     return this.$suggested;
   }
-  download () {
+  download (opts = {}) {
     var url = this.url || this.$playable.url;
     if(!url)
       return Promise.reject('audio is not playable');
-    this.$downloading = true;
-    return _.$download(url, `${this.artist} - ${this.title}.mp3`);
+    this.$downloading = 0;
+    var name = `${opts.albumName ? opts.albumName + '/' : ''}${opts.order ? _.fillNull(opts.order) + ' - ' : ''}${this.artist} - ${this.title}.mp3`;
+    return _.$download(url, name, (e) => {
+      this.$downloading = (e.loaded / e.total * 100)|0;
+    }).catch(() => this.$downloading = -1);
   }
   scrobble () {
     LastFM.scrobble({artist: this.artist, track: this.title, 
@@ -64,6 +79,12 @@ class PlayerAudio {
   setBitrate () {
     return player.setBitrate([this]);
   }
+  updatePlayable () {
+    if(updateTimeout)
+      return;
+    updateTimeout = setTimeout(() => updateTimeout = null, 500);
+    return VK.getAudiosById([this.$playable]).then(([d]) => this.$playable = d, this);
+  }
   // setBitrate (playable) {
   //   playable = playable || this.$playable;
   //   if(playable.$bitrate || !playable.duration)
@@ -74,6 +95,10 @@ class PlayerAudio {
   //     return this;
   //   });
   // }
+}
+
+PlayerAudio.mapFromArray = function (arr) {
+  return arr.map((a) => new PlayerAudio(a));
 }
 
 export default PlayerAudio

@@ -25,9 +25,9 @@ export default {
   a(v-link="'/user'") My Account
   a(v-link="{name: 'search'}") Search
   .auth
-    button(@click="vk.auth", v-show="!vk.authed") vk auth
-    button(@click="vk.serverAuth", v-show="!vk.serverAuthed") vk server auth
-    button(@click="lfm.auth", v-show="!lfm.authed") lastfm auth
+    button.btn-auth(@click="vk.auth", v-show="!vk.authed") vk auth
+    button.btn-auth(@click="vk.serverAuth", v-show="!vk.serverAuthed") vk server auth
+    button.btn-auth(@click="lfm.auth", v-show="!lfm.authed") lastfm auth
   //- a(v-link="{name: 'groups'}") Groups
   //- a(v-link="{name: 'friends'}") Friends
   //- a(v-link="{name: 'bookmarks'}") Bookmarks
@@ -40,7 +40,7 @@ export default {
   // transform: translateX(-320px);
   position: fixed;
   //background: #606060;
-  background-color: white;
+  background-color: #46454d;
   top: 0;
   width: 288px;
   //max-width: 320px;
@@ -49,17 +49,6 @@ export default {
 
   .auth {
     margin: 20px
-
-    button {
-      margin: 5px
-      height: 46px
-      font-size: 19px
-      color: #DCDCDC
-      padding: 0 24px
-      line-height: 46px
-      border-radius: 3px
-      background: #00A2EA
-    }
   }
 }
 
@@ -79,10 +68,8 @@ export default {
   height: 29px;
   color: #7F7F7F;
   transition: .2s background
+  height: 56px
 }
-
-.menu-left a.v-link-active
-  background: #5DE3EE
   
 
 // .menu-left a:first-child

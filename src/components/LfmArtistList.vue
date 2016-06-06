@@ -37,7 +37,7 @@ export default {
 <style lang="stylus">
 
 .lfm-artist-collection
-  size: 100% 170px
+  size: 100% 190px
   overflow-x: auto
   white-space: nowrap
   padding: 10px

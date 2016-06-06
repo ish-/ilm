@@ -25,7 +25,7 @@ var PlayerPrototype = {
     this.play = this.play.bind(this);
 
     _.storage.addEventListener('play', () => this.pauseAudio());
-    this.restore();
+    // this.restore();
   },
   restore () {
     var a = _.storage.get('player-last-audio');
@@ -35,6 +35,8 @@ var PlayerPrototype = {
       this.playlist[a] = a = new PlayerAudio(this.playlist[a]);
       if(!a)
         this.playlist[0] = a = new PlayerAudio(this.playlist[0]);
+    } else if (a && typeof a === 'object') {
+      a = new PlayerAudio(a);
     }
     if(a && a.$playable) {
       this.audioInfo = a;
@@ -44,10 +46,112 @@ var PlayerPrototype = {
   setCurrentTime (seek) {
     audio.currentTime = seek*audio.duration;
   },
+  
+
+  setBitrate (_audios) {
+    if(!VK.serverAuthCheck()) {
+      return Promise.reject();
+    }
+    var audios = _audios.map((audio) => {
+      var a = audio.$playable || audio;
+      return a.owner_id + '_' + a.id;
+    });
+    return VK.getAudiosContentLength(audios).then((lengths) => {
+      _audios.forEach((audio, i) => {
+        var a = audio.$playable || audio;
+        a.$bitrate = _.audioBitrate(lengths[i], a.duration);
+      });
+      return _audios;
+    }).catch(d => console.error('setBitrate: error', d));
+  },
+
+  constructAudio (url) {
+    audio = new Audio();
+    // audio.volume = this._volume = .1; // be quiet
+    audio.src = url.split('extra')[0];
+    audio.addEventListener('error', this.onError);
+    audio.addEventListener('canplaythrough', this.onCanplaythrough);
+  },
+  togglePause () {
+    if(audio) {
+      if(this.paused && audio.paused) {
+        this.playAudio()
+      // } else if (!toggledByTouch) {
+      } else {
+        this.pauseAudio();
+        this.paused = true;
+      }
+    }
+  },
+  save: (function(){
+    var async;
+    return function () {
+      // return;
+      var that = this;
+      if(this.playlist.saved) {
+        _.storage.set('player-last-audio', this.audioInfo);
+        return;
+      }
+      this.playlist.saved = false;
+      if(async && !async.done)
+        async.abort();
+      async = _.asyncDoByChunk(
+        this.playlist,
+        (audio, i, playlist) => audio instanceof PlayerAudio || (playlist[i] = new PlayerAudio(audio)),
+        3, 300, 
+        (playlist) => {
+          _.storage.set('player-last-playlist', playlist);
+          _.storage.set('player-last-audio', that.getAudioPlaylistIndex());
+          that.playlist.saved = true;
+        }
+      );
+      _.storage.set('player-last-audio', this.audioInfo);
+    }
+  })(),
+  play (audioInfo, playlist) {
+    
+    if(!audioInfo.$playable && !audioInfo.url && !VK.serverAuthCheck())
+      return;
+
+    _.storage.emit('play');
+
+    if(playlist && playlist.length 
+        && (!this.playlist.$id || playlist.$id !== this.playlist.$id)) {
+      this.setPlaylist(playlist);
+    }
+    
+    var playlistIndex;
+    if(!(audioInfo instanceof PlayerAudio)) {
+      playlistIndex = this.playlist.indexOf(audioInfo);
+      audioInfo = new PlayerAudio(audioInfo);
+      if(playlistIndex !== null && playlistIndex > -1) 
+        this.playlist[playlistIndex] = audioInfo;
+    }
+    if(VK.serverAuthed)
+      if(!audioInfo.$playable)
+        return audioInfo.searchAndPlay();
+      else if (!audioInfo.$playable.$bitrate)
+        this.setBitrate([audioInfo]);
+
+    this.audioInfo = audioInfo;
+
+    if(audio) {
+      this.pauseAudio(audio);
+      audio.removeEventListener('canplaythrough', this.onCanplaythrough);
+      audio.removeEventListener('progress', this.onProgress);
+      audio.removeEventListener('timeupdate', this.onTimeupdate);
+    }
+
+    this.seek = 0;
+    this.buffered = 0;
+    this.constructAudio(audioInfo.$playable.url);
+    this.playAudio(audio);
+
+  },
   getAudioPlaylistIndex (audioInfo) {
     var i;
     audioInfo = audioInfo || this.audioInfo;
-    i = this.playlist.indexOf(this.audioInfo)
+    i = this.playlist.indexOf(this.audioInfo);
     return i;
   },
   addToPlaylist (some, where) {
@@ -87,121 +191,6 @@ var PlayerPrototype = {
     }
     this.save();
   },
-
-  setBitrate (_audios) {
-    if(!VK.serverAuthed) {
-      alerts.add({type: 'Player', text: 'To display audio quality (bitrate) you should login out server with VK.'});
-      return Promise.reject();
-    }
-    var audios = _audios.map((audio) => {
-      var a = audio.$playable || audio;
-      return a.owner_id + '_' + a.id;
-    });
-    return VK.getAudiosContentLength(audios).then((lengths) => {
-      _audios.forEach((audio, i) => {
-        var a = audio.$playable || audio;
-        a.$bitrate = _.audioBitrate(lengths[i], a.duration);
-      });
-      return _audios;
-    }).catch(d => console.error('setBitrate: error', d));
-  },
-
-  constructAudio (url) {
-    audio = new Audio();
-    // audio.volume = this._volume = .1; // be quiet
-    audio.src = url.split('extra')[0];
-    audio.addEventListener('error', this.onError);
-    audio.addEventListener('canplaythrough', this.onCanplaythrough);
-  },
-  togglePause () {
-    if(audio) {
-      if(this.paused && audio.paused) {
-        this.playAudio()
-      } else if (!toggledByTouch) {
-        this.pauseAudio();
-        this.paused = true;
-      }
-    }
-  },
-  save: (function(){
-    var async;
-    return function () {
-      var that = this;
-      if(this.playlist.saved) {
-        _.storage.set('player-last-audio', this.audioInfo);
-        return;
-      }
-      this.playlist.saved = false;
-      if(async && !async.done)
-        async.abort();
-      async = _.asyncDoByChunk(
-        this.playlist,
-        (audio, i, playlist) => audio instanceof PlayerAudio || (playlist[i] = new PlayerAudio(audio)),
-        3, 300, 
-        (playlist) => {
-          _.storage.set('player-last-playlist', playlist);
-          _.storage.set('player-last-audio', that.getAudioPlaylistIndex());
-          that.playlist.saved = true;
-        }
-      );
-      _.storage.set('player-last-audio', this.audioInfo);
-    }
-  })(),
-  play (audioInfo, playlist) {
-    var playlistIndex;
-    _.storage.emit('play');
-    if(playlist && playlist.length)
-      playlistIndex = playlist.indexOf(audioInfo);
-    if(playlist && playlist.length 
-        && (!this.playlist.$id || playlist.$id !== this.playlist.$id)) {
-      this.setPlaylist(playlist);
-    } else {
-      playlist = this.playlist;
-    }
-    if(!(audioInfo instanceof PlayerAudio)) {
-      audioInfo = new PlayerAudio(audioInfo);
-      if(playlistIndex !== null && playlistIndex > -1) 
-        playlist[playlistIndex] = audioInfo;
-    }
-    if(!audioInfo.$playable)
-      return audioInfo.searchAndPlay();
-    else if (!audioInfo.$playable.$bitrate)
-      this.setBitrate([audioInfo]);
-
-    this.audioInfo = audioInfo;
-    // if(!audioInfo && this.audioInfo.id)
-    //   return this.play(this.audioInfo);
-    // console.log(audioInfo)
-    // if(this.audioInfo === audioInfo || this.audioInfo.id === audioInfo.id) {
-    //   if (audio.paused)
-    //     audio.play();
-    //   else {
-    //     audio.pause();
-    //   }
-    //   return;
-    // }
-
-    if(audio) {
-      this.pauseAudio(audio);
-      // audio.pause();
-      audio.removeEventListener('canplaythrough', this.onCanplaythrough);
-      audio.removeEventListener('progress', this.onProgress);
-      audio.removeEventListener('timeupdate', this.onTimeupdate);
-    }
-
-
-    // this.setBitrate();
-    // this.events.emit({type: 'play', value: audioInfo});
-    this.seek = 0;
-    this.buffered = 0;
-    this.constructAudio(audioInfo.$playable.url);
-
-    // this.setBitrate(this.audioInfo);
-    // console.log('playlist ', this.playlist);
-    this.playAudio(audio);
-    // this.audioPlaylistIndex = getAudioPlaylistIndex() + 1;
-
-  },
   playAudio (_audio = audio) {
     if(!_audio)
       return false;
@@ -221,8 +210,8 @@ var PlayerPrototype = {
       setTimeout (function () {
         var vol = _audio.volume - .02;
         if(vol < 0) {
-          that.checkPaused();
-          return _audio.pause();
+          _audio.pause();
+          return that.checkPaused();
         }
         _audio.volume = vol;
         g(step);
@@ -232,8 +221,8 @@ var PlayerPrototype = {
     return true;
   },
   onError (d) {
-    console.log(d);
-    this.audioInfo.updatePlayable();
+    var update = this.audioInfo.updatePlayable();
+    update && update.then((playerAudio) => this.constructAudio(playerAudio.$playable.url));
   },
   onCanplaythrough () {
     this.checkPaused();
@@ -269,7 +258,8 @@ var PlayerPrototype = {
 
 var player = Object.create(PlayerPrototype);
 Vue.util.extend(player, {
-  audioInfo: {artist: 'None', title: 'None', $playable: {}},
+  // audioInfo: {artist: 'None', title: 'None', $playable: {}},
+  audioInfo: null,
   seek: 0,
   volume: 1,
   buffered: 0,

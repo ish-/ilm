@@ -3,6 +3,8 @@
 import Vue from 'vue'
 Vue.config.debug = true;
 
+Vue.prototype.$noop = function () {}
+
 ////// SERVICES
 import Router from 'vue-router'
 import './main.styl'
@@ -23,6 +25,7 @@ import LfmArtistList from './components/LfmArtistList.vue';
 import LfmAlbum from './components/LfmAlbum.vue';
 import SearchSection from './components/Search.vue';
 import VkAudioList from './components/AudioList.vue';
+import VkFriendList from './components/FriendList.vue';
 import VkPostList from './components/PostList.vue';
 import GroupSection from './components/GroupSection.vue';
 // import ItemView from './components/ItemView.vue'
@@ -54,6 +57,7 @@ router.map({
       '/audios': { name: 'user-audios',
         component: VkAudioList.extend({mixins: [RouteDataVkEntityList]}) },
       // '/audios': { component: Audios, name: 'audios' },
+      '/friends': { component: VkFriendList.extend({mixins: [RouteDataVkEntityList]}), name: 'user-friends' },
     }
   },
   '/club/:userId': {
@@ -62,7 +66,7 @@ router.map({
       '/posts': { component: VkPostList, name: 'club-posts' },
       '/audios': { name: 'club-audios',
         component: VkAudioList.extend({mixins: [RouteDataVkEntityList]}) },
-      // '/audios': { component: Audios, name: 'audios' },
+      // '/friends': { component: VkFriendList, name: 'friends' },
     }
   },
   '/artist/:artistName': {
@@ -98,7 +102,7 @@ document.addEventListener('click', (e) => {
       router.go({path: $el.getAttribute('href')})
     }
   }
-});
+}, true);
 // console.log(VK.userId);
 router.redirect({
   '/user/:id': '/user/:id/posts',

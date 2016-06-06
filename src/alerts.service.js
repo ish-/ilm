@@ -1,4 +1,4 @@
-const ALERT_TIMEOUT = 2000;
+const ALERT_TIMEOUT = 5000;
 
 var alerts = [];
 

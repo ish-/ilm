@@ -49,6 +49,8 @@ window.onstorage = function (e) {
       storage._callbacks[i](msg);
 }
 
+export function fillNull (n) { return (n < 10 ? '0' : '') + n; }
+
 export function $http (opts) {
   return new Promise (function(resolve, reject){
     var xhr = new XMLHttpRequest();
@@ -58,8 +60,13 @@ export function $http (opts) {
       opts.data = JSON.stringify(opts.data);
     }
     xhr.addEventListener('readystatechange', function() {
+      var d;
       if(xhr.readyState === 4) {
-        var d = JSON.parse(xhr.response);
+        try {
+          d = JSON.parse(xhr.response);
+        } catch (e) {
+          reject(-1);
+        }
         if(xhr.status >= 200 && xhr.status < 300) {
           if(d && d.error)
             reject(d);
@@ -73,13 +80,13 @@ export function $http (opts) {
   });
 }
 
-export function $download (url, fileName) {
+export function $download (url, fileName, onprogress) {
   return new Promise ((resolve, reject) => {
     var URL = window.URL || window.webkitURL; // ?
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url);
     xhr.responseType = 'blob';
-    // xhr.onprogress = ::console.log;
+    onprogress && xhr.addEventListener('progress', onprogress);
     xhr.onload = function(e) {
       var saved = saveAs(xhr.response, fileName);
       resolve();
@@ -167,7 +174,7 @@ export function audioBitrate (length, duration) {
   else if (br > 96) br = 96;
   else if (br > 96) br = 96;
   else if (br > 48) br = 48;
-  else br = "<48"
+  else br = false
   return br;
 }
 

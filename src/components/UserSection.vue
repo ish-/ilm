@@ -5,15 +5,17 @@ import VK from '../vk.service';
 // import Posts from './PostList.vue';
 // import Friends from './FriendList.vue';
 
+import BtnHeaderDropdown from './BtnHeaderDropdown.vue';
+
 import '../directives/detectScroll';
 
 // const DEFAULT_ENTITY = 'posts';
 
 export default {
-  // components: { Audios, Posts, Friends },
+  components: { BtnHeaderDropdown },
   name: 'UserSection',
   data () {
-    return {userId: false, entity: '', user: {}}
+    return {userId: false, entity: '', user: {}, routeName: ''}
   },
   // route: {
   //   data (transition) { 
@@ -99,17 +101,30 @@ export default {
 </script>
 <template lang="jade">
 
-section.user-section(v-detect-scroll)
-  header.header-profile(@click="alert")
-    .user-name {{user.first_name}} {{user.last_name}}
+section.user-section
+  header.header-profile
+    btn-header-dropdown
+      //- .icon(slot="selected", :class="'_'+(routeName === 'user-audios' ? 'audio' : routeName === 'user-posts' ? 'wall' : 'friends')")
+      nav(slot="select")
+        a(v-link="{name: 'user-audios', params: {userId: userId}}") 
+          .icon._audio
+          span Audios
+        a(v-link="{name: 'user-posts', params: {userId: userId}}") 
+          .icon._wall
+          span Posts
+        a(v-link="{name: 'user-friends', params: {userId: userId}}")
+          .icon._friends
+          span Friends
+    .full-width.user-name {{user.first_name}} {{user.last_name}}
     img.user-avatar(:src="user.photo_100")
-  .entity
-    button.entity-audios(v-link="{name: 'user-audios', params: {userId: userId}}") Audios
-    button.entity-posts(v-link="{name: 'user-posts', params: {userId: userId}}") Posts
+  //- .entity
+  //-   button.entity-audios(v-link="{name: 'user-audios', params: {userId: userId}}") Audios
+  //-   button.entity-posts(v-link="{name: 'user-posts', params: {userId: userId}}") Posts
+  //-   button.entity-friends(v-link="{name: 'user-friends', params: {userId: userId}}") Friends
     //- button.entity-groups(v-link="{name: 'user', params: {id: id, entity: 'groups'}}") Groups
-    //- button.entity-friends(v-link="{name: 'user', params: {id: id, entity: 'friends'}}") Friends
   .loading-beach(v-show="$loadingRouteData") ...loading beach
-  router-view(keep-alive, transition="fade")
+  .scrollable-y(v-detect-scroll)
+    router-view(keep-alive, transition="fade")
   //- div(v-if="items.length", transition="fade")    
   //-   div(:is="entity", :items="items", transition="fade")
   //- post-list(:posts="items", v-if="entity === 'posts' && items.length", transition="fade")
@@ -127,11 +142,12 @@ section.user-section(v-detect-scroll)
     display: inline-block
     font-size: 21px
     font-family: Tahoma
-    padding-right: 70px
+    padding-right: 10px
     float: right
+    text-align: right
+    overflow: ellipsis
 
   .user-avatar
-    absolute: right
     height: 100%
 
 .entity 

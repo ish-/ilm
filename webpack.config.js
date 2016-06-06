@@ -10,14 +10,15 @@ module.exports = {
     filename: './dist/bundle.js'
   },
   // devtool: 'cheap-module-source-map',
-  devtool: 'source-map',
+  // devtool: 'source-map',
   module: {
     loaders: [
       { test: /\.vue$/, loader: 'vue'},
       { test: /\.js$/, exclude: /(node_modules|bower_components)/, loader: 'babel-loader' },
-      // { test: /\.styl$/, loader: 'style-loader!css-loader!stylus-loader'},
-      { test: /\.styl$/, loader: ExtractTextPlugin.extract("css!stylus")},
+      { test: /\.styl$/, loader: 'style-loader!css-loader!stylus-loader'},
+      // { test: /\.styl$/, loader: ExtractTextPlugin.extract("css!stylus")},
       { test: /\.jade$/, loader: "jade" },
+      { test: /\.svg/, loader: 'svg-url-loader'},
     ]
   },
   babel: {
@@ -34,15 +35,15 @@ module.exports = {
         root: [path.join(__dirname, "bower_components")]
     },
   plugins: [
-    new ExtractTextPlugin("./dist/bundle.css"),
+    // new ExtractTextPlugin("./dist/bundle.css"),
     new webpack.ResolverPlugin(
         new webpack.ResolverPlugin.DirectoryDescriptionFilePlugin(".bower.json", ["main"])
     )
   ],
   vue: {
     loaders: {
-      css: ExtractTextPlugin.extract("css"),
-      stylus: ExtractTextPlugin.extract("css!stylus"),
+      // css: ExtractTextPlugin.extract("css"),
+      // stylus: ExtractTextPlugin.extract("css!stylus"),
       // css: 'stylus',
       html: 'jade',
       js: 'babel',
@@ -51,6 +52,9 @@ module.exports = {
   stylus: {
       use: [require('nib')()],
       import: ['~nib/lib/nib/index.styl'],
+      define: {
+        'inline-image': require('stylus-inline-webpack')({limit: 50000})
+      },
   }
 };
 

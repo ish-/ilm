@@ -6,7 +6,6 @@ import VK from '../vk.service';
 import {compareInLower} from '../utils';
 
 export default {
-  // components: {LfmTrackList, LfmAlbumList},
   data () {
     return {
       vk: VK,
@@ -73,7 +72,7 @@ export default {
 
 </script>
 <template lang="jade">
-section.lfm-artist-section()
+section.lfm-artist-section.scrollable-y
   header(style="background-image: url('{{{getArtistImage()}}}')")
     h1 {{ artist.name || name}}
     template(v-if="artist.name && !error")

@@ -1,19 +1,15 @@
 <script lang="babel">
 
 import Vue from 'vue';
-
-import AudioList from './AudioList.vue';
+import Post from './Post.vue';
 import VK from '../vk.service';
-
-import '../directives/postTextSpoiler';
-
-import '../filters/slice';
-import '../filters/postText';
+import Alerts from '../alerts.service';
 
 import RouteDataVkEntityList from './mixins/RouteDataVkEntityList';
 
 export default {
   mixins: [RouteDataVkEntityList],
+  components: {Post},
   name: 'PostList',
   props: {
     items: {
@@ -21,25 +17,6 @@ export default {
       default: [],
     },
     group: false,
-    // per: {
-    //   type: Number,
-    //   default: 10,
-    // }
-  },
-  route: {
-    // data (trns) {
-    //   console.log('PostList route.data()', trns.to.params);
-    //   var userId = trns.to.params.userId;
-    //   if(this.userId === userId)
-    //     return trns.next();
-    //   this.userId = userId;
-    //   this.items.length = 0;
-
-    //   return {items: VK.getWall(this.userId, this.items)};
-    // },
-    // activate () {
-    //   this.$on('scroll-end-close', ::this.getMore);
-    // }
   },
   created () {
     this.$on('scroll-end-close', this.getEntity);
@@ -48,45 +25,14 @@ export default {
     getEntity () {
       return VK.getWall((this.group ? '-' : '') + this.userId, this.items);
     },
-    getName (owner) {
-      return owner.name ? owner.name : owner.first_name + ' ' + owner.last_name;
-    },
-    getLink (owner) {
-      return owner.name ? ('/club/' + owner.id) : ('/user/' + owner.id);
-    }
   },
-  components: {AudioList},
 }
 
 </script>
 <template lang="jade">
 
 ul.post-collection
-  li.post(v-for='post in items', track-by="id")
-    div
-      .post-info
-        a(href="{{* getLink(post.$owner)}}")
-          img.post-owner-image(:src='post.$owner.photo_50')
-          .post-owner {{* getName(post.$owner)}}
-          .post-date {{* post.date}}
-    p.post-text(v-post-text-spoiler="post.text | postText")
-    .post-image-container
-      img.post-image(v-if='post.$photos', :src='post.$photos[0].photo_604')
-    audio-list(:items="post.$audios", v-if="post.$audios")
-    div
-    div(v-if='!!post.copy_history')
-      .post-info
-        a(href="{{* getLink(post.copy_history[0].$owner)}}")
-          img.post-owner-image(:src='post.copy_history[0].$owner.photo_50')
-          .post-owner {{getName(post.copy_history[0].$owner)}}
-          .post-date {{post.copy_history[0].date}}
-      p.post-text(v-post-text-spoiler="post.copy_history[0].text | postText")
-      .post-image-container
-        img.post-image(v-if='post.copy_history[0].$photos', :src='post.copy_history[0].$photos[0].photo_604')
-      audio-list(:items="post.copy_history[0].$audios")
-      //- .audio-collection
-      //-   .ilm-audio.audio(*ngfor='#audio of post.copy_history[0].$audios; #i = index', [audio]='audio', (play)='player.play($event, collection)')
-
+  li.post(is="post", :post="post", v-for='post in items', track-by="id")
 
 </template>
 <style lang="stylus">
@@ -102,15 +48,37 @@ ul.post-collection
   padding: 15px;
   color: black;
   font-size: 12px;
-  position: relative;
+  // position: relative;
   max-width: 600px;
   margin: 0 auto 11px;
   font-family: Tahoma;
-
-  a > * {
-    pointer-events: none
-  }
 }
+
+
+.post-counts 
+  text-align: right
+
+  > *
+    position: relative
+    height: 24px
+    padding-left: 28px
+    padding-right: 10px
+    line-height: 24px
+    color: white
+    font-size: 14px
+    border-radius: 3px
+    background: #c3c3c3
+    margin-left: 5px
+
+    &.active
+      background: #333
+
+    .icon
+      background-size: cover
+      size: 24px
+      line-height: 24px
+      absolute: top  left 2px
+
 
 .post .post-owner-image {
   width: 30px;
@@ -139,6 +107,7 @@ ul.post-collection
 .post .post-info .post-date {
   font-family: Tahoma;
   color: #949191;
+  margin-top: 3px
 }
 
 .post .post-image-container {
@@ -148,6 +117,7 @@ ul.post-collection
 }
 
 .post-text
+  user-select: initial
   font-size: 12px
   overflow: hidden
   position: relative

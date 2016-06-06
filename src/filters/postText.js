@@ -4,12 +4,13 @@ var VK_ENTITES = {
   club: 'group',
 }
 
-Vue.filter('postText', (html) => {
-  // console.log(html)
+Vue.filter('postText', (post) => {
+  var html = post.text;
   if(!html) return '';
   var s = html.split(/\n/);
   if(s.length > 1) {
-    s[0] = '<h3>' + s[0] + '</h3>';
+    post.$audios.$name = s[0];
+    s[0] = '<h3>' + s[0] + "</h3>";
     html = s.join("\n");
   }
   return html.replace(/\[([^\|]{0,32})\|([^\]]{0,32})\]/g, function (f, o, t) { // vk entities

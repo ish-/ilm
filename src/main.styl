@@ -6,14 +6,20 @@
   
 body
   // font: 24px 'Helvetica Neue'
-  font: 24px 'Roboto', 'Helvetica Neue'
-  color: white
-  absolute: left right bottom top
-  overflow: hidden
+  font-family: 'Roboto', 'Helvetica Neue'
+  color: #333
+  // absolute: left right bottom top
+  // overflow: hidden
   user-select: none
+  
+html
+  overflow: hidden
   
 a
   text-decoration: none
+  
+  > * 
+    pointer-events: none
   
 button
   outline: none
@@ -37,6 +43,10 @@ button
   text-align: center
   absolute: top 48% left 
   
+.scrollable-y
+  size: 100%
+  overflow-y: auto
+  
 ul li 
   list-style: none
   
@@ -51,7 +61,21 @@ ul li
     opacity: 0
   &-leave
     opacity: 0;
-    transform: translateX(0) scale(.7);
+    transform: translateX((0) scale(.7));
+    
+.translateY
+  &-transition
+    transition: all .5s;
+    opacity: 1
+    transform: translateY(0px);
+  &-enter
+    transition-delay: .5s
+    transform: translateY(100%);
+    opacity: 0
+  &-leave
+    opacity: 0;
+    transform: translateY(100%);
+
 
 
 .fade-transition
@@ -62,3 +86,51 @@ ul li
   &-enter, &-leave
     transform: translateY(-100px)
     opacity: 0
+    
+
+.btn-auth
+  margin: 5px
+  height: 39px
+  color: #F5F5F5
+  padding: 0 24px
+  line-height: 35px
+  border-radius: 3px
+  background: #00a2ea
+  text-shadow: 0 0 2px #00364E
+  box-shadow: 0 44px 35px -35px rgba(255,255,255,.3) inset
+  border: 1px solid #0FA7EB
+  font-size: 18px
+
+.btn-bitrate
+  padding: 2px 6px
+  background: #87D81D
+  border-radius: 3px
+  font-size: 12px
+  box-shadow: 0 10px 25px -10px white inset
+  border: 1px solid #92DB32
+  color: #333333
+  
+.icon
+  display: inline-block
+  size: 32px
+  background-position: center center
+  background-repeat: no-repeat no-repeat
+  
+  &._play
+    background-image: url('assets/icon-play.svg')
+  &._pause
+    background-image: url('assets/icon-pause.svg')
+  &._friends
+    background-image: url('assets/icon-friends.svg')
+  // &._menu
+  //   background-image: url('assets/icon-menu.svg')
+  &._person
+    background-image: url('assets/icon-person.svg')
+  &._wall
+    background-image: url('assets/icon-wall.svg')
+  &._like
+    background-image: url('assets/icon-like.svg')
+  &._audio
+    background-image: url('assets/icon-audio.svg')
+  &._repost
+    background-image: url('assets/icon-repost.svg')

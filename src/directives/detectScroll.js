@@ -4,7 +4,7 @@ var _ = {mediator: {}};
 Vue.directive('detect-scroll', {
     params: ['onEndClose'],
     bind () {
-      _.mediator = this.vm;
+      // _.mediator = this.vm;
       this.throttledOnScroll = throttle(function (e) {
         var $el = this.el;
         if($el.scrollHeight - $el.offsetHeight - 500 < $el.scrollTop) {

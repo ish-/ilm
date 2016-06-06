@@ -3,6 +3,7 @@ import Vue from 'vue';
 import Player from '../player.service';
 import PlayerAudio from '../PlayerAudio';
 import VK from '../vk.service';
+import Modals from '../modal.service';
 // import LastFM from '../lastfm.service';
 import '../filters/slice';
 
@@ -13,6 +14,7 @@ export default Vue.extend({
       type: Array,
       default: [],
     },
+    post: null,
     group: false,
     per: {
       type: Number,
@@ -55,22 +57,34 @@ export default Vue.extend({
     getDownloadName (audio) {
       return audio.artist + ' - ' + audio.title + '.mp3';
     },
-    download (_audio, i) {
+    download (_audio, i, albumName) {
       var audio;
+      i = i || this.items.indexOf(_audio);
       if(!(_audio instanceof PlayerAudio))
         audio = new PlayerAudio(_audio);
       else
         audio = _audio;
-      this.$set(`items[${i}].$downloading`, true);
-      audio.download()
-        .then(() => _audio.$downloading = false)
-        .catch(() => _audio.$downloadError = !(_audio.$downloading = false));
+      this.items.$set(i, audio);
+      audio.download(albumName && {order: i+1, albumName});
+        // .then(() => _audio.$downloading = false)
+        // .catch(() => _audio.$downloadError = !(_audio.$downloading = false));
     },
-    goToArtist (artist) {
-      this.$route.router.go({name: 'lfm-artist-tracks', params: {artistName: artist}});
-    }
+    downloadAlbum (saveSequence) {
+      this.items.forEach((a, i) => this.download(a, i, saveSequence && this.items.$name)); 
+    },
+    goToArtist (artistName) {
+      this.$route.router.go({name: 'lfm-artist-tracks', params: {artistName}});
+    },
+    showModal (audio) {
+      Modals.push({
+        name: 'audio-list-context', 
+        data: {audio, playlist: this.items, component: this}
+      });
+    },
   },
   ready () {
+    if(!Player.audioInfo)
+      return;
     if (this.items.some((a) => a.id === Player.audioInfo.$playable.id)) {
       this.$dispatch('player:current-audio-is-on-page');
     }
@@ -80,20 +94,19 @@ export default Vue.extend({
 </script>
 <template lang="jade">
 
-ul.audio-collection(:class="{'bitrates-show': showBitrates}")
-  .ctrls
-    button(@click="getBitrates") get bitrates
-    button(@click="addToPlaylist(items, true)") add next
-    button(@click="addToPlaylist(items)") add to the end
-    button(@click="showDownload = !showDownload") download
-  li.audio(v-for="audio in items | slice per", @click="play(audio)")
+ul.audio-collection(:class="{'bitrates-show': showBitrates}") {{albumName}}
+  //- .ctrls
+  //-   button(@click="getBitrates") get bitrates
+  //-   button(@click="addToPlaylist(items, true)") add next
+  //-   button(@click="addToPlaylist(items)") add to the end
+  //-   button(@click="showDownload = !showDownload") download
+  li.audio(v-for="audio in items | slice per", @click="play(audio)", @contextmenu.prevent="showModal(audio)")
     .audio-container(class="aid-{{* audio.id}}")
-      .audio-bitrate {{ audio.$bitrate }}
-      .audio-artist(@contextmenu.prevent="goToArtist(audio.artist)") {{* audio.artist}}
+      .audio-bitrate {{ audio.$bitrate || '' }}
+      .audio-artist(@click.stop="goToArtist(audio.artist)") {{* audio.artist}}
       .audio-title {{* audio.title}}
-      .audio-download(v-if="showDownload", @click.stop="download(audio, $index)") d^
-        span(v-show="audio.$downloading") ...^
-        span(v-show="audio.$downloadError")  error
+      .audio-download(v-if="showDownload", @click.stop="download(audio, $index)") ^
+      span {{audio.$downloading}}
 
 </template>
 <style lang="stylus">
@@ -102,13 +115,13 @@ ul.audio-collection(:class="{'bitrates-show': showBitrates}")
   .ctrls
     padding: 22px 22px 0
   button
-    margin-right: 8px
-    padding: 8px 10px
-    border-radius: 3px
     background: #44C0F6
-    text-shadow: 0 0 3px white
+    border-radius: 3px
     color: #2B2B2B
     margin-bottom: 5px
+    margin-right: 8px
+    padding: 8px 10px
+    text-shadow: 0 0 3px white
 
 
 .audio 
@@ -127,13 +140,21 @@ ul.audio-collection(:class="{'bitrates-show': showBitrates}")
       bottom: 0
       left: 20px
       right: 14px
-      border-bottom: 1px solid #ECECEC
+      border-bottom: 1px solid rgba(122, 122, 122, 0.2)
       
   &:last-child .audio-container:after
       border: 0
 
   .playing
     background: #B8E7FC;
+    &.audio-container
+      &:after
+        content: ''
+
+
+  .audio-download
+    display: inline-block;
+    float: right
 
 
   .audio-artist

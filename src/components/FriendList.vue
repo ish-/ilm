@@ -1,22 +1,31 @@
 <script lang="babel">
+import Vue from 'vue';
+import VK from '../vk.service';
 import '../filters/slice';
 
-export default {
-  // name: 'AudioList',
+export default Vue.extend({
+  name: 'FriendList',
   props: {
-    items: Array,
+    items: {
+      type: Array,
+      default: [],
+    },
     per: {
       type: Number,
-      default: 300,
+      default: 500,
     },
   },
   data () {
-    return {}
+    return {filterValue: ''}
   },
   methods: {
     goToFriend (friend) {
-      this.$route.router.go({name: 'user', id: friend.id});
-    }
+      this.$route.router.go({name: 'user-posts', params: {id: friend.id}});
+    },
+    getEntity () {
+      return VK.getFriends(this.userId, this.items);
+    },
+    getUserLink: (user) => '/user/' + user.id + '/posts',
   },
   filters: {
     filterByName (arr, val) {
@@ -28,14 +37,14 @@ export default {
       });
     }
   }
-}
+});
 
 </script>
 <template lang="jade">
 
 .friend-collection
   input.search(v-model="filterValue")
-  .friend(v-for="friend in items | filterByName filterValue", track-by="id", @click="goToFriend(friend)")
+  a.friend(href="{{{* getUserLink(friend)}}}", v-for="friend in items | filterByName filterValue", track-by="id")
     .friend-container
       img.friend-avatar(:src="friend.photo_100")
       .friend-lname {{* friend.last_name}}
@@ -54,6 +63,9 @@ export default {
   width: 100px;
   margin: 20px 2% 0;
   border-radius: 2px
+
+  > *
+    pointer-events: none
 
 .friend-avatar
   size: 100px

@@ -1,13 +1,14 @@
 <script lang="babel">
-import VK from '../vk.service';
+// import VK from '../vk.service';
 import Player from '../player.service';
+import alerts from '../alerts.service';
 
 export default {
   props: {
     artist: Object,
     tracks: Array,
     hideByMbid: {
-      default: true
+      default: false
     }
   },
   // data () {
@@ -22,8 +23,6 @@ export default {
   },
   methods: {
     play (track) {
-      if(!VK.serverAuthed)
-        return alerts.add({text: 'To play music from LastFM you should login our VK bitrate detection server.'})
       Player.play(track, this.tracks);
     },
     getPlaycountWidth (track) {
@@ -44,6 +43,9 @@ ul.artist-tracks
   button.artist-tracks-show-all(@click="hideByMbid = false", v-show="hideByMbid") show all
 </template>
 <style lang="stylus">
+
+.artist-tracks
+  cursor: pointer
 
 .artist-track
     height: 45px

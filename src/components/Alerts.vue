@@ -15,7 +15,7 @@ export default {
 </script>
 <template lang="jade">
 .alerts
-  .alert(v-for="alert in alerts | slice 2", transition="translateX") 
+  .alert(v-for="alert in alerts | slice 2", transition="translateX", @click="alerts.$remove(alert)") 
     h2(v-if="alert.type") {{alert.type}}
     p {{alert.text}}
 </template>
